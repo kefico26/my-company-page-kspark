@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>AI 경비 정산 데모 - K-SPARK A-22</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#f0f2f8;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Segoe UI",sans-serif;display:flex;justify-content:center;align-items:center;}
+.shell{width:100vw;height:100vh;max-width:430px;max-height:932px;background:#fff;position:relative;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.15);}
+.statusbar{background:#002266;color:#fff;padding:env(safe-area-inset-top,12px) 20px 10px;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;flex-shrink:0;min-height:44px;}
+.screen{display:none;flex-direction:column;flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+.screen.active{display:flex;}
+.hdr{background:linear-gradient(135deg,#001A5E,#0047CC);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;position:sticky;top:0;z-index:10;}
+.hdr-back{font-size:26px;cursor:pointer;padding:4px 8px 4px 0;min-width:36px;min-height:36px;display:flex;align-items:center;}
+.hdr-title{font-size:17px;font-weight:700;}
+.hdr-sub{font-size:12px;opacity:.75;margin-top:2px;}
+.stepbar{background:#fff;border-bottom:1px solid #E2E8F0;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;}
+.sd{width:24px;height:5px;border-radius:3px;background:#E2E8F0;transition:background .3s;}
+.sd.on{background:#0047CC;}.sd.ok{background:#22C55E;}
+.slabel{font-size:11px;color:#94A3B8;margin-left:6px;}
+.sec-t{padding:14px 18px 6px;font-size:11px;font-weight:700;color:#94A3B8;letter-spacing:.8px;text-transform:uppercase;}
+.btn-blue{background:#0047CC;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit;min-height:52px;}
+.btn-blue:active{background:#003399;}
+.btn-line{background:#fff;color:#0047CC;border:2px solid #0047CC;border-radius:14px;padding:15px;font-size:15px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;min-height:52px;}
+.overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:200;justify-content:center;align-items:center;}
+.overlay.show{display:flex;}
+.ov-box{background:#fff;border-radius:22px;padding:32px 40px;text-align:center;min-width:220px;}
+.spinner{width:42px;height:42px;border:4px solid #E2E8F0;border-top-color:#0047CC;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ov-t{font-size:15px;font-weight:700;color:#0A1628;}
+.ov-s{font-size:12px;color:#94A3B8;margin-top:4px;}
+.modal-bg{display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-end;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal-sheet{background:#fff;border-radius:24px 24px 0 0;width:100%;padding:0 0 env(safe-area-inset-bottom,16px);max-height:90vh;overflow-y:auto;animation:slideUp .3s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-handle{width:40px;height:4px;background:#E2E8F0;border-radius:2px;margin:14px auto 0;}
+.modal-title{font-size:18px;font-weight:800;color:#0A1628;padding:16px 20px 8px;}
+.modal-sub{font-size:13px;color:#64748B;padding:0 20px 16px;}
+.modal-divider{height:1px;background:#F1F5F9;margin:0 20px;}
+.form-group{padding:14px 20px;}
+.form-label{font-size:12px;font-weight:700;color:#64748B;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;}
+.form-input{width:100%;border:2px solid #E2E8F0;border-radius:12px;padding:13px 14px;font-size:15px;font-weight:600;color:#0A1628;font-family:inherit;outline:none;background:#F8FAFF;}
+.form-input:focus{border-color:#0047CC;}
+.form-select{width:100%;border:2px solid #E2E8F0;border-radius:12px;padding:13px 14px;font-size:15px;font-weight:600;color:#0A1628;font-family:inherit;outline:none;background:#F8FAFF;}
+.modal-btns{display:flex;gap:10px;padding:16px 20px 20px;}
+.modal-cancel{flex:1;background:#F1F5F9;color:#64748B;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;min-height:52px;}
+.modal-save{flex:2;background:#0047CC;color:#fff;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;min-height:52px;}
+.reject-modal-bg{display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-end;justify-content:center;}
+.reject-modal-bg.show{display:flex;}
+.reject-sheet{background:#fff;border-radius:24px 24px 0 0;width:100%;padding:0 0 env(safe-area-inset-bottom,16px);animation:slideUp .3s ease;}
+.reject-textarea{width:100%;border:2px solid #E2E8F0;border-radius:12px;padding:14px;font-size:14px;color:#0A1628;font-family:inherit;resize:none;outline:none;background:#F8FAFF;min-height:120px;line-height:1.6;}
+.reject-send{background:linear-gradient(135deg,#EF4444,#DC2626);color:#fff;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;min-height:52px;}
+.review-panel{display:none;background:#FFF7ED;border:2px solid #FDE68A;border-radius:16px;margin:10px 16px 0;overflow:hidden;}
+.review-panel.show{display:block;}
+.review-panel-title{padding:12px 16px;font-size:13px;font-weight:700;color:#92400E;background:#FEF9C3;border-bottom:1px solid #FDE68A;}
+.review-item{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #FDE68A;}
+.review-item:last-child{border:none;}
+.review-item-left{display:flex;align-items:center;gap:10px;}
+.review-item-name{font-size:13px;font-weight:600;color:#0A1628;}
+.review-item-amt{font-size:12px;color:#64748B;margin-top:1px;}
+.review-item-btns{display:flex;gap:6px;}
+.rv-ok{background:#DCFCE7;color:#166534;border:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+.rv-no{background:#FEE2E2;color:#991B1B;border:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+.review-final-btns{padding:12px 16px;display:flex;gap:8px;}
+.rv-final-ok{flex:2;background:#0047CC;color:#fff;border:none;padding:12px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;min-height:46px;}
+.rv-final-cancel{flex:1;background:#F1F5F9;color:#64748B;border:none;padding:12px;border-radius:12px;font-size:14px;cursor:pointer;font-family:inherit;min-height:46px;}
+.toast{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:#0A1628;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;white-space:nowrap;z-index:400;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+
+/* ════ 갤러리 ════ */
+.gallery-bg{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:flex-end;}
+.gallery-bg.show{display:flex;}
+.gallery-sheet{background:#1C1C1E;border-radius:24px 24px 0 0;width:100%;height:85vh;display:flex;flex-direction:column;animation:slideUp .3s ease;}
+.gallery-hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 10px;flex-shrink:0;}
+.gallery-hdr-title{color:#fff;font-size:17px;font-weight:700;}
+.gallery-hdr-count{color:#0A84FF;font-size:14px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:8px;}
+.gallery-hdr-count:active{background:rgba(255,255,255,.1);}
+.gallery-hdr-done{background:#0047CC;color:#fff;border:none;border-radius:10px;padding:7px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+.gallery-hdr-done:disabled{background:#3A3A3C;color:#6C6C6E;}
+.gallery-albums{display:flex;gap:8px;padding:0 16px 12px;overflow-x:auto;flex-shrink:0;}
+.gallery-albums::-webkit-scrollbar{display:none;}
+.gallery-album-btn{background:#3A3A3C;color:#fff;border:none;border-radius:16px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.gallery-album-btn.on{background:#0047CC;}
+.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;overflow-y:auto;flex:1;padding:0 2px 8px;}
+.gallery-item{position:relative;aspect-ratio:3/4;cursor:pointer;overflow:hidden;border-radius:4px;background:#2C2C2E;}
+.gallery-item-img{width:100%;height:100%;object-fit:cover;display:block;}
+.gallery-item.selected .gallery-item-img{filter:brightness(.65);}
+.gallery-check{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.3);border:2px solid #fff;display:flex;align-items:center;justify-content:center;}
+.gallery-item.selected .gallery-check{background:#0047CC;border-color:#0047CC;}
+.gallery-check-num{font-size:11px;font-weight:700;color:#fff;}
+.gallery-date-label{grid-column:1/-1;padding:10px 4px 4px;font-size:12px;font-weight:700;color:#8E8E93;}
+
+/* ════ 카메라 ════ */
+.camera-bg{display:none;position:absolute;inset:0;background:#000;z-index:500;flex-direction:column;}
+.camera-bg.show{display:flex;}
+.camera-viewfinder{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.camera-live{width:100%;height:100%;background:linear-gradient(160deg,#1a1a2e,#16213e,#0f3460);display:flex;align-items:center;justify-content:center;position:relative;}
+.cam-guide{position:absolute;width:78%;height:52%;border:2px solid rgba(255,255,255,.5);border-radius:4px;}
+.cam-corner{position:absolute;width:20px;height:20px;border-color:#fff;border-style:solid;}
+.cam-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0;}
+.cam-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 4px 0 0;}
+.cam-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 4px;}
+.cam-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 4px 0;}
+.cam-env{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.cam-table{position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(180deg,#3d2b1f,#5c3d2e);}
+.cam-receipt{position:absolute;bottom:35%;left:50%;transform:translateX(-50%);width:60%;background:#fff;border-radius:4px;padding:16px 12px;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.cam-receipt-line{height:6px;background:#E2E8F0;border-radius:3px;margin-bottom:6px;}
+.cam-receipt-line.short{width:60%;}
+.cam-receipt-line.medium{width:80%;}
+.cam-receipt-line.price{background:#1E40AF;width:50%;margin-top:10px;}
+.scan-line{position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,#00D4FF,transparent);animation:scanMove 2s linear infinite;}
+@keyframes scanMove{0%{top:20%;}100%{top:80%;}}
+.focus-ring{position:absolute;width:60px;height:60px;border:2px solid #FFD60A;border-radius:8px;animation:focusPulse 1s ease infinite;}
+@keyframes focusPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.6;transform:scale(1.05);}}
+.cam-grid{position:absolute;inset:0;pointer-events:none;}
+.cam-grid-h{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.15);}
+.cam-grid-v{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.15);}
+.cam-top-bar{position:absolute;top:0;left:0;right:0;padding:env(safe-area-inset-top,16px) 20px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent);}
+.cam-close-btn{color:#fff;font-size:28px;cursor:pointer;padding:4px;}
+.cam-flash-btn{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;}
+.cam-tip{color:rgba(255,255,255,.8);font-size:12px;background:rgba(0,0,0,.5);padding:6px 14px;border-radius:20px;}
+.cam-guide-text{position:absolute;bottom:28%;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;font-weight:600;background:rgba(0,0,0,.5);padding:8px 16px;border-radius:20px;white-space:nowrap;}
+.cam-flash-overlay{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:10;transition:opacity .05s;}
+.cam-flash-overlay.flash{opacity:1;}
+.cam-preview{display:none;position:absolute;inset:0;background:#000;z-index:20;flex-direction:column;}
+.cam-preview.show{display:flex;}
+.cam-preview-img{flex:1;display:flex;align-items:center;justify-content:center;background:#1C1C1E;padding:20px;}
+.cam-preview-receipt{background:#fff;width:85%;border-radius:8px;padding:20px 16px;box-shadow:0 8px 40px rgba(0,0,0,.6);transform:rotate(-1deg);}
+.cam-preview-title{text-align:center;font-size:14px;font-weight:700;color:#334155;margin-bottom:12px;padding-bottom:8px;border-bottom:1px dashed #E2E8F0;}
+.cam-preview-bar{display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-bottom:4px;}
+.cam-preview-line{height:8px;background:#E2E8F0;border-radius:4px;margin-bottom:8px;}
+.cam-preview-line.price{background:#1E40AF;width:45%;margin-top:12px;height:10px;}
+.ai-scan-overlay{position:absolute;inset:0;background:rgba(0,71,204,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ai-scan-box{position:absolute;border:2px solid #0047CC;border-radius:4px;animation:aiBoxPulse .8s ease infinite;}
+@keyframes aiBoxPulse{0%,100%{border-color:#0047CC;}50%{border-color:#60A5FA;}}
+.ai-scan-line2{position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,#0047CC,transparent);animation:scanMove2 1s linear infinite;}
+@keyframes scanMove2{0%{top:0;}100%{top:100%;}}
+.ai-detect-badge{background:#0047CC;color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;position:relative;z-index:2;animation:badgePop .3s ease;}
+@keyframes badgePop{from{transform:scale(0);}to{transform:scale(1);}}
+.cam-bottom-bar{background:#000;padding:24px 20px env(safe-area-inset-bottom,24px);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.cam-thumb{width:52px;height:52px;border-radius:10px;border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#DBEAFE,#EFF6FF);font-size:22px;}
+.cam-shutter{width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.3);cursor:pointer;position:relative;}
+.cam-shutter:active{transform:scale(.92);}
+.cam-shutter-inner{position:absolute;inset:4px;border-radius:50%;background:#fff;}
+.cam-switch-btn{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:22px;cursor:pointer;}
+.cam-preview-btns{background:#000;padding:20px;display:flex;gap:12px;flex-shrink:0;}
+.cam-retake{flex:1;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:15px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;}
+.cam-use{flex:2;background:#0047CC;color:#fff;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.upload-choice-bg{display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:400;align-items:flex-end;}
+.upload-choice-bg.show{display:flex;}
+.upload-choice-sheet{background:#fff;border-radius:24px 24px 0 0;width:100%;padding:0 0 env(safe-area-inset-bottom,16px);animation:slideUp .3s ease;}
+.upload-choice-title{text-align:center;font-size:13px;color:#94A3B8;padding:16px 0 8px;font-weight:600;}
+.upload-choice-btn{display:flex;align-items:center;gap:16px;padding:16px 20px;cursor:pointer;border:none;background:transparent;width:100%;font-family:inherit;}
+.upload-choice-btn:active{background:#F8FAFF;}
+.upload-choice-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.upload-choice-text-title{font-size:16px;font-weight:700;color:#0A1628;}
+.upload-choice-text-sub{font-size:13px;color:#64748B;margin-top:2px;}
+.upload-choice-divider{height:1px;background:#F1F5F9;margin:0 20px;}
+.upload-choice-cancel{text-align:center;padding:16px;font-size:16px;font-weight:600;color:#EF4444;cursor:pointer;}
+
+/* SPLASH */
+#s0{background:radial-gradient(ellipse at 40% 35%,#C8E6FF,#E8F4FF 50%,#fff 100%);justify-content:center;align-items:center;text-align:center;padding:40px 28px;}
+.sp-badge-row{display:flex;gap:10px;justify-content:center;margin-bottom:28px;}
+.sp-badge{background:linear-gradient(135deg,#0047CC,#38BDF8);color:#fff;font-size:13px;font-weight:800;padding:7px 18px;border-radius:20px;}
+.sp-badge2{background:#EFF6FF;border:2px solid #BFDBFE;color:#0047CC;font-size:13px;font-weight:700;padding:6px 16px;border-radius:20px;}
+.sp-icon{width:90px;height:90px;background:linear-gradient(135deg,#0047CC,#38BDF8);border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:46px;margin:0 auto 22px;box-shadow:0 12px 40px rgba(0,71,204,.3);}
+.sp-title{font-size:26px;font-weight:900;color:#0A1628;line-height:1.3;margin-bottom:10px;letter-spacing:-1px;}
+.sp-title em{color:#0047CC;font-style:normal;}
+.sp-div{width:48px;height:4px;background:linear-gradient(90deg,#0047CC,#38BDF8);border-radius:2px;margin:14px auto;}
+.sp-slogan{font-size:16px;color:#475569;margin-bottom:28px;line-height:1.6;}
+.sp-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:32px;}
+.sp-chip{background:rgba(0,71,204,.07);border:1.5px solid rgba(0,71,204,.18);color:#1E40AF;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;}
+.sp-presenter{font-size:14px;color:#64748B;margin-bottom:32px;}
+.sp-presenter strong{color:#0A1628;font-weight:800;}
+.sp-btn{background:linear-gradient(135deg,#0047CC,#1D6FEB);color:#fff;border:none;border-radius:16px;padding:18px;font-size:17px;font-weight:800;cursor:pointer;width:100%;font-family:inherit;min-height:56px;}
+#s_role{background:#F8FAFF;}
+.role-desc{padding:20px 18px 8px;font-size:16px;color:#475569;text-align:center;}
+.role-card{margin:0 16px 14px;background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:20px 18px;cursor:pointer;display:flex;align-items:center;gap:16px;min-height:80px;}
+.role-card:active{border-color:#0047CC;background:#EFF6FF;}
+.role-icon-box{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.role-card-title{font-size:18px;font-weight:800;color:#0A1628;margin-bottom:3px;}
+.role-card-sub{font-size:13px;color:#64748B;}
+#s1{background:#F8FAFF;}
+.hr-banner{margin:14px 16px 4px;background:linear-gradient(135deg,#001A5E,#0047CC);border-radius:18px;padding:16px 18px;color:#fff;}
+.hr-top{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.hr-avatar{width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+.hr-name{font-size:16px;font-weight:800;}
+.hr-rank{font-size:12px;opacity:.75;margin-top:2px;}
+.hr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.hr-lim{background:rgba(255,255,255,.12);border-radius:10px;padding:9px 12px;}
+.hr-lim-label{font-size:11px;opacity:.7;}
+.hr-lim-val{font-size:15px;font-weight:800;margin-top:2px;}
+.trip-card{margin:0 16px 12px;background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:16px 18px;cursor:pointer;}
+.trip-card.sel{border-color:#0047CC;background:#EFF6FF;}
+.trip-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.trip-name{font-size:17px;font-weight:800;color:#0A1628;}
+.trip-badge{font-size:11px;padding:4px 10px;border-radius:10px;font-weight:700;flex-shrink:0;margin-left:8px;}
+.b-ing{background:#FEF9C3;color:#854D0E;}.b-done{background:#DCFCE7;color:#166634;}
+.trip-info{font-size:13px;color:#64748B;margin-top:5px;}
+.trip-amt{font-size:14px;color:#0047CC;font-weight:700;margin-top:5px;}
+.bottom-bar{padding:16px;background:#fff;border-top:1px solid #E2E8F0;flex-shrink:0;}
+#s2{background:#F8FAFF;}
+.ai-intro-box{margin:14px 16px 0;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:2px solid #BFDBFE;border-radius:16px;padding:16px 18px;display:flex;gap:12px;}
+.ai-intro-icon{font-size:28px;flex-shrink:0;}
+.ai-intro-text{font-size:14px;color:#1E3A8A;font-weight:600;line-height:1.6;}
+.ai-intro-text strong{color:#0047CC;}
+.pc-wrap-m{margin:12px 16px 0;background:#fff;border:2px solid #0047CC;border-radius:18px;overflow:hidden;}
+.pc-head{background:linear-gradient(135deg,#0047CC,#2563EB);padding:14px 18px;display:flex;align-items:center;gap:8px;}
+.pc-head span{color:#fff;font-size:15px;font-weight:700;}
+.pc-body{padding:14px 18px;}
+.pc-desc{font-size:13px;color:#475569;line-height:1.6;margin-bottom:12px;}
+.pc-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #F1F5F9;font-size:14px;}
+.pc-item:last-of-type{border:none;}
+.pc-item-text{flex:1;color:#334155;font-weight:500;}
+.pc-item-amt{font-weight:700;color:#0047CC;font-size:13px;white-space:nowrap;}
+.pc-btns{display:flex;gap:10px;margin-top:14px;}
+#s3{background:#F8FAFF;}
+.upload-zone{margin:14px 16px 0;background:#fff;border:2px dashed #0047CC;border-radius:18px;padding:28px 20px;text-align:center;cursor:pointer;}
+.upload-zone:active{background:#EFF6FF;}
+.uz-icon{font-size:44px;margin-bottom:10px;}
+.uz-title{font-size:16px;font-weight:800;color:#0047CC;margin-bottom:4px;}
+.uz-sub{font-size:13px;color:#94A3B8;}
+.upload-action-row{display:flex;gap:10px;margin:10px 16px 0;}
+.upload-cam-btn{flex:1;background:linear-gradient(135deg,#001A5E,#0047CC);color:#fff;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;min-height:52px;}
+.upload-gal-btn{flex:1;background:#fff;color:#0047CC;border:2px solid #0047CC;border-radius:14px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;min-height:52px;}
+.thumb-grid{margin:14px 16px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.thumb{background:#EFF6FF;border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;}
+.thumb-badge{position:absolute;bottom:4px;right:4px;background:#0047CC;color:#fff;font-size:9px;padding:2px 5px;border-radius:5px;font-weight:700;}
+.thumb-add{background:#F8FAFF;border:2px dashed #BFDBFE;border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:26px;color:#0047CC;cursor:pointer;}
+.proc-wrap{margin:12px 16px 0;background:#fff;border-radius:14px;padding:14px 16px;}
+.proc-title{font-size:13px;font-weight:700;color:#0A1628;margin-bottom:10px;}
+.proc-row{display:flex;align-items:center;gap:8px;padding:5px 0;}
+.proc-icon{font-size:16px;width:20px;text-align:center;}
+.proc-name{font-size:13px;color:#475569;width:80px;}
+.proc-bar{flex:1;height:5px;background:#E2E8F0;border-radius:3px;overflow:hidden;}
+.proc-fill{height:100%;border-radius:3px;}
+.proc-pct{font-size:11px;font-weight:700;color:#64748B;width:24px;text-align:right;}
+#s4{background:#F8FAFF;}
+.ai-ok-bar{margin:12px 16px 0;background:#DCFCE7;border-radius:30px;padding:10px 16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#166534;}
+.dup-warn{margin:10px 16px 0;background:#FFF7ED;border:2px solid #F97316;border-radius:14px;padding:12px 14px;display:flex;gap:10px;}
+.dup-icon{font-size:20px;flex-shrink:0;}
+.dup-text{font-size:13px;color:#9A3412;line-height:1.5;}
+.tabs{display:flex;margin:10px 16px 0;background:#fff;border-radius:14px;padding:4px;border:1px solid #E2E8F0;overflow-x:auto;gap:2px;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;padding:9px 12px;font-size:12px;font-weight:600;color:#94A3B8;border-radius:10px;cursor:pointer;white-space:nowrap;}
+.tab.on{background:#0047CC;color:#fff;}
+.tab-content{display:none;}.tab-content.on{display:block;}
+.res-card{margin:10px 16px 0;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #E2E8F0;transition:all .3s;}
+.res-card.excluded{opacity:.5;filter:grayscale(80%);}
+
+/* ★ FIX 1: res-head & res-cat - iOS 글씨 잘림 해결 */
+.res-head{
+  background:linear-gradient(135deg,#001A5E,#0047CC);
+  padding:12px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  min-height:54px;
+  flex-wrap:wrap;
+  gap:6px;
+  row-gap:4px;
+}
+.res-card.excluded .res-head{background:linear-gradient(135deg,#64748B,#94A3B8);}
+.res-head-l{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.res-head-l span{color:#fff;font-size:14px;font-weight:700;}
+.res-cat{
+  background:rgba(255,255,255,.22);
+  color:#fff;
+  font-size:11px;
+  padding:5px 10px;
+  border-radius:8px;
+  font-weight:700;
+  white-space:normal;
+  word-break:keep-all;
+  flex-shrink:0;
+  line-height:1.4;
+  min-height:26px;
+  display:flex;
+  align-items:center;
+}
+
+.res-body{padding:12px 16px;}
+.res-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #F8FAFF;}
+.res-row:last-child{border:none;}
+.rl{font-size:13px;color:#94A3B8;}.rv{font-size:14px;font-weight:700;color:#0A1628;}
+.rv.big{color:#0047CC;font-size:16px;}
+.excluded-banner{background:#FEE2E2;border-radius:12px;margin:10px 16px 0;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#991B1B;font-weight:600;}
+.conf-wrap{margin:10px 16px 0;}
+.conf-label{font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;}
+.conf-bar{height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden;}
+.conf-fill{height:100%;background:linear-gradient(90deg,#22C55E,#10B981);border-radius:3px;width:0;transition:width 1.4s ease;}
+.conf-pct{display:flex;justify-content:space-between;font-size:11px;color:#94A3B8;margin-top:3px;}
+.edited-badge{background:#FEF9C3;color:#854D0E;border-radius:6px;font-size:10px;padding:2px 7px;font-weight:700;margin-left:6px;}
+.sw-row{display:flex;gap:8px;margin:12px 16px 0;}
+.sw-btn{flex:1;padding:13px 8px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;min-height:48px;}
+.sw-ok{background:#DCFCE7;color:#166534;}
+.sw-edit-btn{background:#FEF9C3;color:#854D0E;}
+.sw-no{background:#FEE2E2;color:#991B1B;}
+.sw-btn.done{opacity:.55;pointer-events:none;}
+#s5{background:#F8FAFF;}
+.lim-card{margin:0 16px 10px;background:#fff;border-radius:16px;padding:16px 18px;}
+.lim-title{font-size:15px;font-weight:800;color:#0A1628;margin-bottom:14px;}
+.lim-row{margin-bottom:12px;}
+.lim-top{display:flex;justify-content:space-between;margin-bottom:5px;}
+.lim-label{font-size:14px;color:#334155;font-weight:600;}
+.lim-val{font-size:13px;font-weight:700;}
+.lim-bar{height:8px;background:#F1F5F9;border-radius:4px;overflow:hidden;}
+.lim-fill{height:100%;border-radius:4px;transition:width 1.2s ease;}
+.fg{background:linear-gradient(90deg,#22C55E,#16A34A);}.fy{background:linear-gradient(90deg,#F59E0B,#D97706);}.fr{background:linear-gradient(90deg,#EF4444,#DC2626);}
+.alert-list{margin:0 16px 10px;display:flex;flex-direction:column;gap:8px;}
+.alert-item{border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;display:flex;gap:8px;}
+.al-r{background:#FEE2E2;color:#991B1B;}.al-y{background:#FFF7ED;color:#9A3412;}.al-g{background:#DCFCE7;color:#166634;}
+#s6{background:#F8FAFF;}
+.sum-card{margin:14px 16px 10px;background:linear-gradient(135deg,#001A5E,#0047CC);border-radius:18px;padding:20px;color:#fff;}
+.sum-lbl{font-size:12px;opacity:.7;margin-bottom:4px;}
+.sum-amt{font-size:32px;font-weight:900;margin-bottom:4px;}
+.sum-per{font-size:12px;opacity:.6;}
+.item-row{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:14px 16px;border-radius:12px;margin:0 16px 8px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.item-row.excluded-row{background:#F1F5F9;opacity:.6;}
+.item-row.excluded-row .ir-name{text-decoration:line-through;color:#94A3B8;}
+.item-row.excluded-row .ir-amt{color:#94A3B8;text-decoration:line-through;}
+.ir-l{display:flex;align-items:center;gap:12px;}
+.ir-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.ic-t{background:#DBEAFE;}.ic-f{background:#FCE7F3;}.ic-h{background:#DCFCE7;}.ic-e{background:#F3E8FF;}.ic-u{background:#FEF9C3;}
+.ir-name{font-size:15px;font-weight:700;color:#0A1628;}
+.ir-date{font-size:12px;color:#94A3B8;margin-top:2px;}
+.ir-amt{font-size:15px;font-weight:800;color:#0047CC;}
+.ai-comment{margin:0 16px 10px;background:#EFF6FF;border-radius:14px;padding:14px 16px;}
+.ai-comment-t{font-size:13px;font-weight:800;color:#1E40AF;margin-bottom:6px;}
+.ai-comment-b{font-size:13px;color:#334155;line-height:1.7;}
+.verify-list{margin:0 16px 10px;display:flex;flex-direction:column;gap:6px;}
+.vi{background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #0047CC;}
+.vi-t{font-size:14px;font-weight:700;color:#0A1628;}
+.vi-s{font-size:12px;color:#64748B;margin-top:2px;}
+.action-btns{padding:12px 16px 20px;display:flex;flex-direction:column;gap:8px;background:#F8FAFF;}
+#s_done{background:radial-gradient(ellipse at 50% 30%,#DBEAFE,#EFF6FF 50%,#fff);justify-content:center;align-items:center;text-align:center;padding:40px 28px;}
+.done-icon{font-size:80px;margin-bottom:18px;animation:bumpIn .5s ease;}
+@keyframes bumpIn{0%{transform:scale(0);}65%{transform:scale(1.15);}100%{transform:scale(1);}}
+.done-title{font-size:28px;font-weight:900;color:#0A1628;margin-bottom:8px;}
+.done-sub{font-size:15px;color:#64748B;line-height:1.7;margin-bottom:28px;}
+.done-box{background:#fff;border-radius:18px;padding:18px;width:100%;margin-bottom:16px;text-align:left;}
+.done-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid #F1F5F9;}
+.done-row:last-child{border:none;}
+.done-row .l{color:#94A3B8;}.done-row .v{font-weight:700;color:#0A1628;}
+.eff-box{background:#DCFCE7;border-radius:14px;padding:16px;width:100%;margin-bottom:24px;text-align:left;}
+.eff-t{font-size:14px;font-weight:800;color:#166534;margin-bottom:8px;}
+.eff-b{font-size:13px;color:#166534;line-height:1.9;}
+.rst-btn{background:linear-gradient(135deg,#0047CC,#1D6FEB);color:#fff;border:none;border-radius:16px;padding:18px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit;min-height:54px;}
+#s_appr{background:#F8FAFF;}
+.appr-tabs{display:flex;background:#fff;border-bottom:1px solid #E2E8F0;flex-shrink:0;position:sticky;top:0;z-index:5;}
+.appr-tab{flex:1;padding:14px 4px;text-align:center;font-size:12px;color:#94A3B8;cursor:pointer;border-bottom:3px solid transparent;font-weight:600;}
+.appr-tab.on{color:#0047CC;border-bottom-color:#0047CC;font-weight:800;}
+.appr-tab-icon{font-size:20px;display:block;margin-bottom:2px;}
+.appr-card{margin:12px 16px 0;background:#fff;border-radius:18px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+.appr-card.rejected{background:#FEF2F2;border:2px solid #FECACA;}
+.appr-name{font-size:16px;font-weight:800;color:#0A1628;}
+.appr-info{font-size:14px;color:#475569;margin-bottom:10px;line-height:1.6;margin-top:8px;}
+.appr-hl{background:#FFF7ED;border-left:3px solid #F59E0B;padding:10px 12px;border-radius:0 10px 10px 0;font-size:13px;color:#92400E;margin-bottom:12px;line-height:1.5;}
+.appr-btns{display:flex;gap:8px;}
+.ab-ok{flex:2;background:#DCFCE7;color:#166534;border:none;padding:13px;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;min-height:48px;font-family:inherit;}
+.ab-hold{flex:1;background:#FEF9C3;color:#854D0E;border:none;padding:13px;border-radius:12px;font-size:13px;cursor:pointer;min-height:48px;font-family:inherit;font-weight:600;}
+.ab-no{flex:1;background:#FEE2E2;color:#991B1B;border:none;padding:13px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;min-height:48px;font-family:inherit;}
+.dash-card{margin:12px 16px 0;background:#fff;border-radius:18px;padding:18px;}
+.dash-total{background:linear-gradient(135deg,#001A5E,#0047CC);border-radius:14px;padding:16px;color:#fff;margin-bottom:14px;}
+.dt-lbl{font-size:12px;opacity:.7;}.dt-amt{font-size:26px;font-weight:900;margin:4px 0;}.dt-sub{font-size:12px;opacity:.6;}
+.dash-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.dash-bar-icon{font-size:18px;width:22px;text-align:center;}
+.dash-bar-label{font-size:13px;color:#334155;width:48px;}
+.dash-bar-bg{flex:1;height:8px;background:#F1F5F9;border-radius:4px;overflow:hidden;}
+.dash-bar-fill{height:100%;border-radius:4px;}
+.dash-bar-pct{font-size:12px;color:#64748B;width:28px;text-align:right;}
+.dash-bar-amt{font-size:12px;font-weight:700;color:#0047CC;width:48px;text-align:right;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 16px 0;}
+.stat-box{background:#fff;border-radius:14px;padding:14px;text-align:center;}
+.stat-icon{font-size:24px;margin-bottom:5px;}.stat-val{font-size:20px;font-weight:900;color:#0047CC;}.stat-label{font-size:11px;color:#94A3B8;margin-top:3px;}
+.rejected-banner{background:#FEE2E2;border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#991B1B;font-weight:600;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="overlay" id="overlay"><div class="ov-box"><div class="spinner"></div><div class="ov-t" id="ov-t">처리 중...</div><div class="ov-s" id="ov-s">잠시만 기다려주세요</div></div></div>
+<div class="modal-bg" id="editModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="editModalTitle">항목 수정</div>
+    <div class="modal-sub">정보를 직접 수정하세요</div>
+    <div class="modal-divider"></div>
+    <div class="form-group"><div class="form-label">상호명</div><input class="form-input" id="editName" type="text"></div>
+    <div class="form-group"><div class="form-label">결제일시</div><input class="form-input" id="editDate" type="text"></div>
+    <div class="form-group"><div class="form-label">금액 (원)</div><input class="form-input" id="editAmt" type="number" inputmode="numeric"></div>
+    <div class="form-group"><div class="form-label">카테고리</div>
+      <select class="form-select" id="editCat">
+        <option value="식비(일반)">🍽️ 식비 (일반)</option>
+        <option value="식비(접대)">🍽️ 식비 (접대)</option>
+        <option value="교통비">🚌 교통비</option>
+        <option value="숙박비">🏨 숙박비</option>
+        <option value="기타">📦 기타</option>
+      </select>
+    </div>
+    <div class="modal-btns"><button class="modal-cancel" id="editCancel">취소</button><button class="modal-save" id="editSave">✅ 수정 저장</button></div>
+  </div>
+</div>
+<div class="reject-modal-bg" id="rejectModal">
+  <div class="reject-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">❌ 반려 사유 입력</div>
+    <div class="modal-sub">반려 사유를 입력하면 직원에게 알림이 전송됩니다.</div>
+    <div class="modal-divider"></div>
+    <div class="form-group"><div class="form-label">반려 대상</div><div id="rejectTargetInfo" style="font-size:14px;font-weight:600;color:#0A1628;padding:10px 14px;background:#F8FAFF;border-radius:12px;"></div></div>
+    <div class="form-group"><div class="form-label">반려 사유</div><textarea class="reject-textarea" id="rejectReason" placeholder="예: 영수증 원본이 필요합니다."></textarea></div>
+    <div class="modal-btns"><button class="modal-cancel" id="rejectCancel">취소</button><button class="reject-send" id="rejectSend">📨 반려 알림 전송</button></div>
+  </div>
+</div>
+<div class="upload-choice-bg" id="uploadChoiceBg">
+  <div class="upload-choice-sheet">
+    <div class="upload-choice-title">영수증 추가 방법 선택</div>
+    <button class="upload-choice-btn" id="choiceCamera"><div class="upload-choice-icon" style="background:#DBEAFE">📷</div><div><div class="upload-choice-text-title">카메라로 촬영</div><div class="upload-choice-text-sub">지금 영수증을 직접 찍어서 업로드</div></div></button>
+    <div class="upload-choice-divider"></div>
+    <button class="upload-choice-btn" id="choiceGallery"><div class="upload-choice-icon" style="background:#F3E8FF">🖼️</div><div><div class="upload-choice-text-title">사진첩에서 선택</div><div class="upload-choice-text-sub">갤러리에서 영수증 사진 선택</div></div></button>
+    <div class="upload-choice-divider"></div>
+    <div class="upload-choice-cancel" id="choiceCancel">취소</div>
+  </div>
+</div>
+
+<!-- ★ FIX 2: 갤러리 - 영수증 스타일 SVG 이미지로 교체 -->
+<div class="gallery-bg" id="galleryBg">
+  <div class="gallery-sheet">
+    <div class="gallery-hdr">
+      <div class="gallery-hdr-title">사진 선택</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <!-- ★ FIX 4: "선택 안 함" 탭 → 뒤로가기 -->
+        <span class="gallery-hdr-count" id="galSelCount" title="탭하면 닫힘">선택 안 함</span>
+        <button class="gallery-hdr-done" id="galDoneBtn" disabled>추가</button>
+      </div>
+    </div>
+    <div class="gallery-albums">
+      <button class="gallery-album-btn on">최근 항목</button>
+      <button class="gallery-album-btn">영수증</button>
+      <button class="gallery-album-btn">즐겨찾기</button>
+      <button class="gallery-album-btn">카메라</button>
+    </div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </div>
+</div>
+
+<div class="camera-bg" id="cameraBg">
+  <div class="camera-viewfinder">
+    <div class="camera-live" id="camLive">
+      <div class="cam-env"><div class="cam-table"></div><div class="cam-receipt"><div class="cam-receipt-line medium"></div><div class="cam-receipt-line short"></div><div class="cam-receipt-line medium"></div><div class="cam-receipt-line short"></div><div class="cam-receipt-line price"></div></div></div>
+      <div class="cam-grid"><div class="cam-grid-h" style="top:33%"></div><div class="cam-grid-h" style="top:66%"></div><div class="cam-grid-v" style="left:33%"></div><div class="cam-grid-v" style="left:66%"></div></div>
+      <div class="cam-guide"><div class="cam-corner tl"></div><div class="cam-corner tr"></div><div class="cam-corner bl"></div><div class="cam-corner br"></div></div>
+      <div class="scan-line"></div>
+      <div class="focus-ring" style="top:42%;left:44%;"></div>
+      <div class="cam-guide-text">영수증을 가이드 안에 맞춰주세요</div>
+    </div>
+    <div class="cam-top-bar"><div class="cam-close-btn" id="camCloseBtn">✕</div><div class="cam-tip">자동 감지 ON</div><button class="cam-flash-btn" id="camFlashBtn">⚡ 자동</button></div>
+    <div class="cam-flash-overlay" id="camFlashOverlay"></div>
+    <div class="cam-preview" id="camPreview">
+      <div class="cam-preview-img">
+        <div style="position:relative;width:85%;">
+          <div class="cam-preview-receipt"><div class="cam-preview-title">스카이스 강남점</div><div class="cam-preview-bar"><span>날짜</span><span>2024.05.15</span></div><div class="cam-preview-bar"><span>교육비</span><span>14,500원</span></div><div class="cam-preview-bar"><span>부가세</span><span>1,318원</span></div><div class="cam-preview-line"></div><div class="cam-preview-line price"></div></div>
+          <div class="ai-scan-overlay" id="aiScanOverlay" style="display:none;"><div class="ai-scan-box" style="top:10%;left:5%;right:5%;bottom:10%;"></div><div class="ai-scan-line2"></div><div class="ai-detect-badge" id="aiDetectBadge" style="display:none;margin-top:auto;margin-bottom:16px;">🤖 영수증 감지됨 · 신뢰도 97%</div></div>
+        </div>
+      </div>
+      <div class="cam-preview-btns"><button class="cam-retake" id="camRetakeBtn">↩ 다시 찍기</button><button class="cam-use" id="camUseBtn">✅ 사용하기</button></div>
+    </div>
+  </div>
+  <div class="cam-bottom-bar"><div class="cam-thumb">🍽️</div><div class="cam-shutter" id="camShutter"><div class="cam-shutter-inner"></div></div><button class="cam-switch-btn">🔄</button></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="statusbar"><span>9:41</span><span>Mobile HR</span><span>🔋 87%</span></div>
+
+<div class="screen active" id="s0">
+  <div class="sp-badge-row"><span class="sp-badge">⚡ 2026 K-SPARK</span><span class="sp-badge2">A-22</span></div>
+  <div class="sp-icon">🤖</div>
+  <div class="sp-title">AI 기반 경비 증빙<br><em>자동 인식·정산</em></div>
+  <div class="sp-div"></div>
+  <div class="sp-slogan">"직원은 확인만,<br>나머지는 AI가"</div>
+  <div class="sp-chips"><span class="sp-chip">📸 AI 영수증 인식</span><span class="sp-chip">🤖 선제 추천</span><span class="sp-chip">👔 HR 직급 연동</span><span class="sp-chip">⚠️ 이상 탐지</span><span class="sp-chip">🔔 누락 방지</span><span class="sp-chip">✅ 결재자 뷰</span></div>
+  <div class="sp-presenter"><strong>전동화PT제어2팀 · 김지현</strong></div>
+  <button class="sp-btn" id="startBtn">체험 시작하기 →</button>
+</div>
+
+<div class="screen" id="s_role">
+  <div class="hdr"><div><div class="hdr-title">역할 선택</div><div class="hdr-sub">어떤 입장으로 체험하시겠어요?</div></div></div>
+  <div class="role-desc">내 역할을 선택하세요</div>
+  <div class="sec-t">👤 체험 역할</div>
+  <div class="role-card" id="roleEmp"><div class="role-icon-box" style="background:#DBEAFE">👨‍💼</div><div><div class="role-card-title">직원 (정산 신청자)</div><div class="role-card-sub">출장 경비를 정산 신청합니다</div></div></div>
+  <div class="role-card" id="roleAppr"><div class="role-icon-box" style="background:#DCFCE7">👔</div><div><div class="role-card-title">팀장 (결재자)</div><div class="role-card-sub">부하직원 정산을 검토·승인합니다</div></div></div>
+</div>
+
+<div class="screen" id="s1">
+  <div class="hdr"><div><div class="hdr-title">경비 정산</div><div class="hdr-sub">정산 대상 출장을 선택하세요</div></div></div>
+  <div class="stepbar"><div class="sd on"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div><span class="slabel">1 / 6</span></div>
+  <div class="sec-t">👔 HR 직급 연동</div>
+  <div class="hr-banner"><div class="hr-top"><div class="hr-avatar">👨‍💼</div><div><div class="hr-name">김지현 대리</div><div class="hr-rank">전동화PT제어2팀 · 대리 3년차</div></div></div><div class="hr-grid"><div class="hr-lim"><div class="hr-lim-label">식비 한도/인</div><div class="hr-lim-val">₩30,000</div></div><div class="hr-lim"><div class="hr-lim-label">숙박비 한도/박</div><div class="hr-lim-val">₩130,000</div></div><div class="hr-lim"><div class="hr-lim-label">교통비 한도</div><div class="hr-lim-val">₩150,000</div></div><div class="hr-lim"><div class="hr-lim-label">총 출장비 한도</div><div class="hr-lim-val">₩500,000</div></div></div></div>
+  <div class="sec-t">📋 진행 중인 출장</div>
+  <div class="trip-card sel trip-c"><div class="trip-top"><div class="trip-name">🏢 서울 출장</div><div class="trip-badge b-ing">정산 중</div></div><div class="trip-info">📅 2024.05.15~05.17 | 📍 서울 강남구</div><div class="trip-amt">예상: ₩345,000</div></div>
+  <div class="trip-card trip-c"><div class="trip-top"><div class="trip-name">✈️ 대전 출장</div><div class="trip-badge b-ing">진행 중</div></div><div class="trip-info">📅 2024.05.14~05.15 | 📍 대전광역시</div><div class="trip-amt">예상: ₩220,000</div></div>
+  <div class="sec-t">✅ 완료된 출장</div>
+  <div class="trip-card trip-c"><div class="trip-top"><div class="trip-name">🏭 부산 출장</div><div class="trip-badge b-done">완료</div></div><div class="trip-info">📅 2024.05.01~05.03 | 📍 부산 해운대구</div><div class="trip-amt">정산: ₩580,000</div></div>
+  <div style="height:12px"></div>
+  <div class="bottom-bar"><button class="btn-blue" id="toS2">다음: AI 선제 추천 확인 →</button></div>
+</div>
+
+<div class="screen" id="s2">
+  <div class="hdr"><div class="hdr-back" id="bk_s2">‹</div><div><div class="hdr-title">🤖 AI 선제 추천</div><div class="hdr-sub">서울 출장 · 복귀 감지됨</div></div></div>
+  <div class="stepbar"><div class="sd ok"></div><div class="sd on"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div><span class="slabel">2 / 6</span></div>
+  <div class="ai-intro-box"><div class="ai-intro-icon">🤖</div><div class="ai-intro-text">법인카드·HR시스템 분석 완료!<br><strong>아래 항목들을 정산할 수 있습니다.</strong></div></div>
+  <div class="pc-wrap-m">
+    <div class="pc-head"><span>📋</span><span>정산 가능 항목 발견 (5건)</span></div>
+    <div class="pc-body">
+      <div class="pc-desc">서울 출장(5/15~5/17) 기간 감지된 항목입니다. 영수증을 첨부하시겠습니까?</div>
+      <div class="pc-item"><span style="font-size:18px">✅</span><span class="pc-item-text">법인카드 — 스카이스 강남점</span><span class="pc-item-amt">₩345,000</span></div>
+      <div class="pc-item"><span style="font-size:18px">✅</span><span class="pc-item-text">KTX 서울행 (예약 연동)</span><span class="pc-item-amt">₩59,800</span></div>
+      <div class="pc-item"><span style="font-size:18px">✅</span><span class="pc-item-text">호텔 체크아웃 (예약 연동)</span><span class="pc-item-amt">₩130,000</span></div>
+      <div class="pc-item"><span style="font-size:18px">❓</span><span class="pc-item-text">택시 이용 감지 (미첨부)</span><span class="pc-item-amt">추정 ₩25,000</span></div>
+      <div class="pc-item"><span style="font-size:18px">❓</span><span class="pc-item-text">출장지 식비 추가 (미첨부)</span><span class="pc-item-amt">미확인</span></div>
+      <div class="pc-btns">
+        <button class="btn-blue" id="toS3" style="flex:2;font-size:14px;padding:14px;">영수증 첨부하기</button>
+        <!-- ★ FIX 3: 건너뛰기 → S4 바로 이동 (식비+교통만) -->
+        <button class="btn-line" id="skipS3" style="flex:1;font-size:13px;padding:13px;">건너뛰기</button>
+      </div>
+    </div>
+  </div>
+  <div style="height:20px"></div>
+</div>
+
+<div class="screen" id="s3">
+  <div class="hdr"><div class="hdr-back" id="bk_s3">‹</div><div><div class="hdr-title">영수증 일괄 첨부</div><div class="hdr-sub">최대 20장 한번에</div></div></div>
+  <div class="stepbar"><div class="sd ok"></div><div class="sd ok"></div><div class="sd on"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div><span class="slabel">3 / 6</span></div>
+  <div class="upload-zone" id="upZone"><div class="uz-icon">📎</div><div class="uz-title">탭하여 영수증 선택</div><div class="uz-sub">📷 촬영 또는 🖼️ 사진첩에서 선택</div></div>
+  <div class="upload-action-row"><button class="upload-cam-btn" id="camDirectBtn">📷 카메라 촬영</button><button class="upload-gal-btn" id="galDirectBtn">🖼️ 사진첩 선택</button></div>
+  <div class="sec-t" id="thumbSectionTitle" style="display:none">📎 업로드된 영수증 (<span id="thumbCount">0</span>장)</div>
+  <div class="thumb-grid" id="thumbGrid" style="display:none"><div class="thumb-add" id="addMore">＋</div></div>
+  <div class="proc-wrap" id="procWrap" style="display:none"><div class="proc-title">🤖 AI 병렬 처리 중</div><div id="procRows"></div></div>
+  <div style="height:12px"></div>
+  <div class="bottom-bar" style="display:flex;gap:10px;"><button class="btn-line" id="bk_s3b" style="flex:1">‹ 이전</button><button class="btn-blue" id="toS4" style="flex:2">🤖 AI 분석 시작 →</button></div>
+</div>
+
+<div class="screen" id="s4">
+  <div class="hdr"><div class="hdr-back" id="bk_s4">‹</div><div><div class="hdr-title">AI 인식 결과</div><div class="hdr-sub" id="s4sub">항목 확인 · 평균 신뢰도 96.1%</div></div></div>
+  <div class="stepbar"><div class="sd ok"></div><div class="sd ok"></div><div class="sd ok"></div><div class="sd on"></div><div class="sd"></div><div class="sd"></div><span class="slabel">4 / 6</span></div>
+  <div class="ai-ok-bar" id="s4OkBar">✅ 5장 분석 완료 · 평균 신뢰도 96.1%</div>
+  <div class="dup-warn" id="dupWarn"><div class="dup-icon">🔴</div><div class="dup-text"><strong>중복 영수증 감지!</strong> 스카이스 강남점(₩345,000)이 지난달 정산에 이미 포함되어 있습니다.</div></div>
+  <div class="tabs" id="tabsRow">
+    <div class="tab on" data-tab="0">🍽️ 식비1</div>
+    <div class="tab" data-tab="1">🚌 교통</div>
+    <div class="tab" data-tab="2">🏨 숙박</div>
+    <div class="tab" data-tab="3">📦 기타</div>
+    <div class="tab" data-tab="4">🍽️ 식비2</div>
+  </div>
+  <div class="tab-content on" data-tc="0" id="tc0">
+    <div class="res-card" id="card0"><div class="res-head"><div class="res-head-l"><span>🧾</span><span id="c0-name">스카이스 강남점</span></div><span class="res-cat" id="c0-cat">🍽️ 식비(접대)</span></div>
+    <div class="res-body"><div class="res-row"><span class="rl">결제일시</span><span class="rv" id="c0-date">2023.10.26 14:35</span></div><div class="res-row"><span class="rl">금액</span><span class="rv big" id="c0-amt">₩345,000</span></div><div class="res-row"><span class="rl">결제수단</span><span class="rv">법인카드 *234</span></div><div class="res-row"><span class="rl">신뢰도</span><span class="rv" style="color:#22C55E">97.3%</span></div></div></div>
+    <div class="conf-wrap"><div class="conf-label">인식 신뢰도</div><div class="conf-bar"><div class="conf-fill" id="cf0"></div></div><div class="conf-pct"><span>0%</span><span style="color:#22C55E;font-weight:700">97.3%</span></div></div>
+    <div class="sw-row"><button class="sw-btn sw-ok" id="ok0">✅ 확인</button><button class="sw-btn sw-edit-btn" id="edit0" data-idx="0">✏️ 수정</button><button class="sw-btn sw-no" id="excl0" data-idx="0">❌ 제외</button></div>
+  </div>
+  <div class="tab-content" data-tc="1" id="tc1">
+    <div class="res-card" id="card1"><div class="res-head"><div class="res-head-l"><span>🧾</span><span id="c1-name">모범택시 영수증</span></div><span class="res-cat" id="c1-cat">🚌 교통비</span></div>
+    <div class="res-body"><div class="res-row"><span class="rl">결제일시</span><span class="rv" id="c1-date">2024.05.15 09:20</span></div><div class="res-row"><span class="rl">금액</span><span class="rv big" id="c1-amt">₩25,000</span></div><div class="res-row"><span class="rl">경로</span><span class="rv">서울역 → 강남구</span></div><div class="res-row"><span class="rl">신뢰도</span><span class="rv" style="color:#22C55E">98.1%</span></div></div></div>
+    <div class="conf-wrap"><div class="conf-label">인식 신뢰도</div><div class="conf-bar"><div class="conf-fill" id="cf1"></div></div><div class="conf-pct"><span>0%</span><span style="color:#22C55E;font-weight:700">98.1%</span></div></div>
+    <div class="sw-row"><button class="sw-btn sw-ok" id="ok1">✅ 확인</button><button class="sw-btn sw-edit-btn" id="edit1" data-idx="1">✏️ 수정</button><button class="sw-btn sw-no" id="excl1" data-idx="1">❌ 제외</button></div>
+  </div>
+  <div class="tab-content" data-tc="2" id="tc2">
+    <div class="res-card" id="card2"><div class="res-head"><div class="res-head-l"><span>🧾</span><span id="c2-name">강남 비즈니스호텔</span></div><span class="res-cat" id="c2-cat">🏨 숙박비</span></div>
+    <div class="res-body"><div class="res-row"><span class="rl">체크인/아웃</span><span class="rv" id="c2-date">05.15~05.17</span></div><div class="res-row"><span class="rl">금액</span><span class="rv big" id="c2-amt">₩130,000</span></div><div class="res-row"><span class="rl">1박 금액</span><span class="rv" style="color:#22C55E">₩65,000 ✅한도내</span></div><div class="res-row"><span class="rl">신뢰도</span><span class="rv" style="color:#22C55E">95.8%</span></div></div></div>
+    <div class="conf-wrap"><div class="conf-label">인식 신뢰도</div><div class="conf-bar"><div class="conf-fill" id="cf2"></div></div><div class="conf-pct"><span>0%</span><span style="color:#22C55E;font-weight:700">95.8%</span></div></div>
+    <div class="sw-row"><button class="sw-btn sw-ok" id="ok2">✅ 확인</button><button class="sw-btn sw-edit-btn" id="edit2" data-idx="2">✏️ 수정</button><button class="sw-btn sw-no" id="excl2" data-idx="2">❌ 제외</button></div>
+  </div>
+  <div class="tab-content" data-tc="3" id="tc3">
+    <div class="res-card" id="card3"><div class="res-head"><div class="res-head-l"><span>🧾</span><span id="c3-name">편의점 (GS25)</span></div><span class="res-cat" id="c3-cat">📦 기타</span></div>
+    <div class="res-body"><div class="res-row"><span class="rl">결제일시</span><span class="rv" id="c3-date">2024.05.16 22:10</span></div><div class="res-row"><span class="rl">금액</span><span class="rv big" id="c3-amt">₩8,500</span></div><div class="res-row"><span class="rl">항목</span><span class="rv" style="color:#F59E0B">⚠️ 업무 연관 불분명</span></div><div class="res-row"><span class="rl">신뢰도</span><span class="rv" style="color:#F59E0B">91.2%</span></div></div></div>
+    <div class="conf-wrap"><div class="conf-label">인식 신뢰도</div><div class="conf-bar"><div class="conf-fill" id="cf3" style="background:linear-gradient(90deg,#F59E0B,#D97706)"></div></div><div class="conf-pct"><span>0%</span><span style="color:#F59E0B;font-weight:700">91.2%</span></div></div>
+    <div style="margin:10px 16px 0;background:#FFF7ED;border-radius:12px;padding:12px 14px;font-size:13px;color:#92400E;">⚠️ 편의점 구매는 업무 연관성 사유 입력이 필요합니다.</div>
+    <div class="sw-row"><button class="sw-btn sw-ok" id="ok3">✅ 포함</button><button class="sw-btn sw-edit-btn" id="edit3" data-idx="3">✏️ 수정</button><button class="sw-btn sw-no" id="excl3" data-idx="3">❌ 제외</button></div>
+  </div>
+  <div class="tab-content" data-tc="4" id="tc4">
+    <div class="res-card" id="card4"><div class="res-head"><div class="res-head-l"><span>🧾</span><span id="c4-name">한식당 (점심)</span></div><span class="res-cat" id="c4-cat">🍽️ 식비(일반)</span></div>
+    <div class="res-body"><div class="res-row"><span class="rl">결제일시</span><span class="rv" id="c4-date">2024.05.16 12:30</span></div><div class="res-row"><span class="rl">금액</span><span class="rv big" id="c4-amt">₩18,000</span></div><div class="res-row"><span class="rl">1인 금액</span><span class="rv" style="color:#22C55E">₩18,000 ✅한도내</span></div><div class="res-row"><span class="rl">신뢰도</span><span class="rv" style="color:#22C55E">97.0%</span></div></div></div>
+    <div class="conf-wrap"><div class="conf-label">인식 신뢰도</div><div class="conf-bar"><div class="conf-fill" id="cf4"></div></div><div class="conf-pct"><span>0%</span><span style="color:#22C55E;font-weight:700">97.0%</span></div></div>
+    <div class="sw-row"><button class="sw-btn sw-ok" id="ok4">✅ 확인</button><button class="sw-btn sw-edit-btn" id="edit4" data-idx="4">✏️ 수정</button><button class="sw-btn sw-no" id="excl4" data-idx="4">❌ 제외</button></div>
+  </div>
+  <div style="height:12px"></div>
+  <div class="bottom-bar" style="display:flex;gap:10px;"><button class="btn-line" id="bk_s4b" style="flex:1">‹ 이전</button><button class="btn-blue" id="toS5" style="flex:2">다음: 한도 체크 →</button></div>
+</div>
+
+<div class="screen" id="s5">
+  <div class="hdr"><div class="hdr-back" id="bk_s5">‹</div><div><div class="hdr-title">실시간 한도 체크</div><div class="hdr-sub">HR 직급 기준 자동 적용</div></div></div>
+  <div class="stepbar"><div class="sd ok"></div><div class="sd ok"></div><div class="sd ok"></div><div class="sd ok"></div><div class="sd on"></div><div class="sd"></div><span class="slabel">5 / 6</span></div>
+  <div style="height:4px"></div>
+  <div class="lim-card">
+    <div class="lim-title">💳 대리 직급 기준 한도 현황</div>
+    <div class="lim-row"><div class="lim-top"><span class="lim-label">🚌 교통비</span><span class="lim-val" style="color:#22C55E">₩25,000 / ₩150,000</span></div><div class="lim-bar"><div class="lim-fill fg" id="lf1" style="width:0"></div></div></div>
+    <div class="lim-row"><div class="lim-top"><span class="lim-label">🍽️ 식비(접대)</span><span class="lim-val" style="color:#EF4444">₩345,000 ⚠️초과</span></div><div class="lim-bar"><div class="lim-fill fr" id="lf2" style="width:0"></div></div></div>
+    <div class="lim-row"><div class="lim-top"><span class="lim-label">🏨 숙박비</span><span class="lim-val" style="color:#22C55E">₩130,000 / ₩260,000</span></div><div class="lim-bar"><div class="lim-fill fg" id="lf3" style="width:0"></div></div></div>
+    <div class="lim-row"><div class="lim-top"><span class="lim-label">🍽️ 식비(일반)</span><span class="lim-val" style="color:#22C55E">₩18,000 / ₩30,000</span></div><div class="lim-bar"><div class="lim-fill fg" id="lf4" style="width:0"></div></div></div>
+    <div class="lim-row" style="margin-bottom:0"><div class="lim-top"><span class="lim-label">📦 기타</span><span class="lim-val" style="color:#F59E0B">₩8,500 (사유필요)</span></div><div class="lim-bar"><div class="lim-fill fy" id="lf5" style="width:0"></div></div></div>
+  </div>
+  <div class="sec-t">⚠️ 이상 탐지 결과</div>
+  <div class="alert-list">
+    <div class="alert-item al-r">🔴 <strong>중복 영수증</strong> — 스카이스강남점, 지난달 내역과 동일</div>
+    <div class="alert-item al-r">🔴 <strong>식비 한도 초과</strong> — ₩345,000은 1인 한도 ₩30,000 초과</div>
+    <div class="alert-item al-y">🟡 <strong>기타 항목</strong> — 편의점 구매 업무 연관성 사유 필요</div>
+    <div class="alert-item al-g">🟢 <strong>교통비·숙박비</strong> — 정상 (한도 내)</div>
+  </div>
+  <div style="height:12px"></div>
+  <div class="bottom-bar" style="display:flex;gap:10px;"><button class="btn-line" id="bk_s5b" style="flex:1">‹ 이전</button><button class="btn-blue" id="toS6" style="flex:2">초안 생성 →</button></div>
+</div>
+
+<div class="screen" id="s6">
+  <div class="hdr"><div class="hdr-back" id="bk_s6">‹</div><div><div class="hdr-title">정산 초안 생성</div><div class="hdr-sub">AI 자동 작성 완료</div></div></div>
+  <div class="stepbar"><div class="sd ok"></div><div class="sd ok"></div><div class="sd ok"></div><div class="sd ok"></div><div class="sd ok"></div><div class="sd on"></div><span class="slabel">6 / 6</span></div>
+  <div class="sum-card"><div class="sum-lbl">총 정산 금액</div><div class="sum-amt" id="s6TotalAmt">₩181,500</div><div class="sum-per">📅 서울 출장 · 2024.05.15 ~ 05.17</div></div>
+  <div class="sec-t">📝 정산 항목</div>
+  <div id="draftItems"></div>
+  <div class="ai-comment"><div class="ai-comment-t">🤖 AI 자동 생성 코멘트</div><div class="ai-comment-b" id="aiComment">본 정산은 서울 출장 관련 비용으로 규정 내 정상 처리되었습니다.</div></div>
+  <div class="verify-list"><div class="vi"><div class="vi-t">✅ 출장 기간·지역 모두 일치</div><div class="vi-s">전 항목 05.15~05.17 서울 강남구 범위 내</div></div><div class="vi"><div class="vi-t">✅ HR 직급 한도 준수 (대리 기준)</div><div class="vi-s" id="s6LimitCheck">총 정산금액 한도 내</div></div></div>
+  <div class="action-btns"><button class="btn-blue" id="submitBtn">🚀 정산 제출하기</button><button class="btn-line" id="saveBtn">💾 임시저장</button></div>
+</div>
+
+<div class="screen" id="s_done">
+  <div class="done-icon">✅</div>
+  <div class="done-title">정산 제출 완료!</div>
+  <div class="done-sub">AI가 자동 작성한 정산 초안이<br>결재자(팀장)에게 전달되었습니다.</div>
+  <div class="done-box"><div class="done-row"><span class="l">신청번호</span><span class="v">#EXP-2024-0892</span></div><div class="done-row"><span class="l">정산 금액</span><span class="v" style="color:#0047CC" id="doneAmt">₩181,500</span></div><div class="done-row"><span class="l">처리 시간</span><span class="v" style="color:#22C55E">⚡ 3분 (기존 30분↓)</span></div><div class="done-row"><span class="l">결재 상태</span><span class="v">팀장 승인 대기</span></div></div>
+  <div class="eff-box"><div class="eff-t">🎉 AI 자동화 효과</div><div class="eff-b">✓ 영수증 촬영/사진첩 업로드<br>✓ 수정/제외 항목 자동 반영<br>✓ HR 직급 한도 자동 적용<br>✓ 입력 시간 90% 단축</div></div>
+  <button class="rst-btn" id="rstBtn">🔄 처음으로 돌아가기</button>
+</div>
+
+<div class="screen" id="s_appr">
+  <div class="hdr"><div class="hdr-back" id="bk_appr">‹</div><div><div class="hdr-title">📥 결재 대기함</div><div class="hdr-sub">팀장 뷰 · 2건 대기</div></div></div>
+  <div class="appr-tabs"><div class="appr-tab on" id="atab1"><span class="appr-tab-icon">📥</span>대기(2)</div><div class="appr-tab" id="atab2"><span class="appr-tab-icon">✅</span>승인완료</div><div class="appr-tab" id="atab3"><span class="appr-tab-icon">📊</span>팀 현황</div></div>
+  <div id="apprWaiting">
+    <div class="appr-card" id="apprCard1"><div class="appr-name">👨‍💼 김지현 대리 — 서울 출장</div><div style="font-size:12px;color:#94A3B8;margin-top:2px;margin-bottom:8px;">방금 전</div><div class="appr-info">정산 금액: <strong style="color:#0047CC">₩181,500</strong> · 4건 · 05.15~05.17<br>🤖 AI 검증: 중복 1건 제외 · 한도 준수</div><div class="appr-hl">⚠️ 기타 항목(₩8,500) 업무연관성 사유 입력됨. 검토 권장</div><div class="appr-btns"><button class="ab-ok" id="approveBtn1">✅ 일괄 승인</button><button class="ab-hold" id="reviewBtn1">🔍 검토</button><button class="ab-no" id="rejectBtn1">❌ 반려</button></div></div>
+    <div class="review-panel" id="reviewPanel1"><div class="review-panel-title">🔍 항목별 검토 — 김지현 대리</div><div class="review-item"><div class="review-item-left"><span style="font-size:18px">🚌</span><div><div class="review-item-name">교통비 (택시)</div><div class="review-item-amt">₩25,000 · 2024.05.15</div></div></div><div class="review-item-btns"><button class="rv-ok" data-item="교통비">✅</button><button class="rv-no" data-item="교통비">❌</button></div></div><div class="review-item"><div class="review-item-left"><span style="font-size:18px">🏨</span><div><div class="review-item-name">숙박비 (2박)</div><div class="review-item-amt">₩130,000 · 05.15~17</div></div></div><div class="review-item-btns"><button class="rv-ok" data-item="숙박비">✅</button><button class="rv-no" data-item="숙박비">❌</button></div></div><div class="review-item"><div class="review-item-left"><span style="font-size:18px">🍽️</span><div><div class="review-item-name">식비 (일반)</div><div class="review-item-amt">₩18,000 · 2024.05.16</div></div></div><div class="review-item-btns"><button class="rv-ok" data-item="식비">✅</button><button class="rv-no" data-item="식비">❌</button></div></div><div class="review-item"><div class="review-item-left"><span style="font-size:18px">📦</span><div><div class="review-item-name">기타 (편의점)</div><div class="review-item-amt">₩8,500 · 업무용</div></div></div><div class="review-item-btns"><button class="rv-ok" data-item="기타">✅</button><button class="rv-no" data-item="기타">❌</button></div></div><div class="review-final-btns"><button class="rv-final-ok" id="reviewFinalOk1">✅ 검토 완료 · 승인</button><button class="rv-final-cancel" id="reviewFinalCancel1">닫기</button></div></div>
+    <div class="appr-card" id="apprCard2" style="margin-top:0"><div class="appr-name">👩‍💼 이수진 사원 — 대전 출장</div><div style="font-size:12px;color:#94A3B8;margin-top:2px;margin-bottom:8px;">1시간 전</div><div class="appr-info">정산 금액: <strong style="color:#0047CC">₩95,000</strong> · 3건 · 05.14~05.15<br>🤖 AI 검증: 이상 없음 · 전 항목 한도 내</div><div class="appr-btns"><button class="ab-ok" id="approveBtn2">✅ 일괄 승인</button><button class="ab-hold" id="reviewBtn2">🔍 검토</button><button class="ab-no" id="rejectBtn2">❌ 반려</button></div></div>
+    <div class="review-panel" id="reviewPanel2"><div class="review-panel-title">🔍 항목별 검토 — 이수진 사원</div><div class="review-item"><div class="review-item-left"><span style="font-size:18px">🚌</span><div><div class="review-item-name">교통비 (KTX)</div><div class="review-item-amt">₩29,800 · 2024.05.14</div></div></div><div class="review-item-btns"><button class="rv-ok" data-item="KTX">✅</button><button class="rv-no" data-item="KTX">❌</button></div></div><div class="review-item"><div class="review-item-left"><span style="font-size:18px">🍽️</span><div><div class="review-item-name">식비 (일반)</div><div class="review-item-amt">₩15,200 · 2024.05.14</div></div></div><div class="review-item-btns"><button class="rv-ok" data-item="식비2">✅</button><button class="rv-no" data-item="식비2">❌</button></div></div><div class="review-item"><div class="review-item-left"><span style="font-size:18px">🚌</span><div><div class="review-item-name">교통비 (복귀)</div><div class="review-item-amt">₩50,000 · 2024.05.15</div></div></div><div class="review-item-btns"><button class="rv-ok" data-item="복귀">✅</button><button class="rv-no" data-item="복귀">❌</button></div></div><div class="review-final-btns"><button class="rv-final-ok" id="reviewFinalOk2">✅ 검토 완료 · 승인</button><button class="rv-final-cancel" id="reviewFinalCancel2">닫기</button></div></div>
+    <div style="height:20px"></div>
+  </div>
+  <div id="apprDone" style="display:none">
+    <div style="padding:28px 16px 0;text-align:center;"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:18px;font-weight:800;color:#0A1628;margin-bottom:6px">승인 완료!</div><div style="font-size:14px;color:#64748B" id="approvedName">정산이 승인되었습니다.</div></div>
+    <div class="dash-card" style="margin-top:16px"><div style="font-size:16px;font-weight:800;color:#0A1628;margin-bottom:14px">📊 팀 이번달 경비 현황</div><div class="dash-total"><div class="dt-lbl">팀 총 경비 사용액</div><div class="dt-amt">₩2,840,000</div><div class="dt-sub">예산 ₩5,000,000 중 56.8% 사용</div></div><div class="dash-bar-row"><span class="dash-bar-icon">🚌</span><span class="dash-bar-label">교통비</span><div class="dash-bar-bg"><div class="dash-bar-fill" style="width:35%;background:#3B82F6"></div></div><span class="dash-bar-pct">35%</span><span class="dash-bar-amt">₩994k</span></div><div class="dash-bar-row"><span class="dash-bar-icon">🍽️</span><span class="dash-bar-label">식비</span><div class="dash-bar-bg"><div class="dash-bar-fill" style="width:28%;background:#EC4899"></div></div><span class="dash-bar-pct">28%</span><span class="dash-bar-amt">₩795k</span></div><div class="dash-bar-row"><span class="dash-bar-icon">🏨</span><span class="dash-bar-label">숙박비</span><div class="dash-bar-bg"><div class="dash-bar-fill" style="width:25%;background:#22C55E"></div></div><span class="dash-bar-pct">25%</span><span class="dash-bar-amt">₩710k</span></div><div class="dash-bar-row"><span class="dash-bar-icon">📦</span><span class="dash-bar-label">기타</span><div class="dash-bar-bg"><div class="dash-bar-fill" style="width:12%;background:#A855F7"></div></div><span class="dash-bar-pct">12%</span><span class="dash-bar-amt">₩341k</span></div></div>
+    <div class="stat-grid"><div class="stat-box"><div class="stat-icon">⚡</div><div class="stat-val">2.3분</div><div class="stat-label">평균 처리시간</div></div><div class="stat-box"><div class="stat-icon">🎯</div><div class="stat-val">97.3%</div><div class="stat-label">승인율</div></div><div class="stat-box"><div class="stat-icon">🔴</div><div class="stat-val">3건</div><div class="stat-label">이달 중복탐지</div></div><div class="stat-box"><div class="stat-icon">✅</div><div class="stat-val">48건</div><div class="stat-label">이달 처리완료</div></div></div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+</div><!-- /.shell -->
+
+<script>
+(function(){
+var items=[
+  {idx:0,name:"스카이스 강남점",date:"2023.10.26 14:35",amt:345000,cat:"식비(접대)",icon:"🍽️",iconClass:"ic-f",excluded:false,edited:false},
+  {idx:1,name:"모범택시 영수증",date:"2024.05.15 09:20",amt:25000,cat:"교통비",icon:"🚌",iconClass:"ic-t",excluded:false,edited:false},
+  {idx:2,name:"강남 비즈니스호텔",date:"05.15~05.17",amt:130000,cat:"숙박비",icon:"🏨",iconClass:"ic-h",excluded:false,edited:false},
+  {idx:3,name:"편의점 (GS25)",date:"2024.05.16 22:10",amt:8500,cat:"기타",icon:"📦",iconClass:"ic-u",excluded:false,edited:false},
+  {idx:4,name:"한식당 (점심)",date:"2024.05.16 12:30",amt:18000,cat:"식비(일반)",icon:"🍽️",iconClass:"ic-f",excluded:false,edited:false}
+];
+var currentEditIdx=-1;
+var currentRejectTarget="";
+var uploadedThumbs=[];
+var galSelected=[];
+var flashOn=false;
+var skipMode=false; // ★ FIX 3: 건너뛰기 모드 플래그
+
+/* ★ FIX 2: 갤러리 데이터 — 영수증 스타일 SVG */
+function makeReceiptSVG(logoColor, logoText, store, item1n, item1p, item2n, item2p, total, barColor){
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130" width="100" height="130">'
+    +'<rect width="100" height="130" fill="white" rx="3"/>'
+    +'<rect width="100" height="26" fill="'+logoColor+'" rx="2"/>'
+    +'<text x="50" y="17" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="white" text-anchor="middle">'+logoText+'</text>'
+    +'<text x="50" y="35" font-family="Arial,sans-serif" font-size="6" fill="#555" text-anchor="middle">'+store+'</text>'
+    +'<text x="8" y="45" font-family="Arial,sans-serif" font-size="5" fill="#999">영수증</text>'
+    +'<line x1="5" y1="48" x2="95" y2="48" stroke="#eee" stroke-width="0.5"/>'
+    +'<text x="8" y="60" font-family="Arial,sans-serif" font-size="6" fill="#333">'+item1n+'</text>'
+    +'<text x="92" y="60" font-family="Arial,sans-serif" font-size="6" fill="#333" text-anchor="end">'+item1p+'</text>'
+    +'<text x="8" y="72" font-family="Arial,sans-serif" font-size="6" fill="#333">'+item2n+'</text>'
+    +'<text x="92" y="72" font-family="Arial,sans-serif" font-size="6" fill="#333" text-anchor="end">'+item2p+'</text>'
+    +'<line x1="5" y1="78" x2="95" y2="78" stroke="#ccc" stroke-width="0.5" stroke-dasharray="2,2"/>'
+    +'<text x="8" y="89" font-family="Arial,sans-serif" font-size="7" font-weight="bold" fill="#222">합계</text>'
+    +'<text x="92" y="89" font-family="Arial,sans-serif" font-size="7" font-weight="bold" fill="'+barColor+'" text-anchor="end">&#8361;'+total+'</text>'
+    +'<rect x="5" y="94" width="35" height="8" rx="2" fill="#F0F0F0"/>'
+    +'<text x="22" y="100" font-family="Arial,sans-serif" font-size="5" fill="#666" text-anchor="middle">카드승인</text>'
+    +'<rect x="0" y="118" width="100" height="12" fill="#222" rx="0"/>'
+    +'<rect x="5" y="120" width="90" height="2" fill="white" opacity="0.25"/>'
+    +'<rect x="5" y="124" width="55" height="1.5" fill="white" opacity="0.15"/>'
+    +'</svg>';
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+}
+
+var galleryData=[
+  {date:"오늘",items:[
+    {src:makeReceiptSVG("#00704A","STARBUCKS","스타벅스 강남점","아메리카노","4,500","케이크","5,800","10,300","#00704A"),l:"식비"},
+    {src:makeReceiptSVG("#EE2E24","다이소","다이소 강남점","생활용품","1,000","문구류","2,000","3,000","#EE2E24"),l:"기타"},
+    {src:makeReceiptSVG("#E60012","CGV","CGV 강남점","영화 2인","28,000","팝콘세트","10,000","38,000","#E60012"),l:"접대"},
+    {src:makeReceiptSVG("#E8A000","emart24","이마트24","음료수","1,500","간식","2,000","3,500","#E8A000"),l:"기타"},
+    {src:makeReceiptSVG("#3A1D96","카카오T","택시 이용","기본요금","3,800","거리요금","14,700","18,500","#3A1D96"),l:"교통"},
+    {src:makeReceiptSVG("#1A1A1A","신세계","신세계백화점","선물세트","120,000","포장비","5,000","125,000","#1A1A1A"),l:"접대"}
+  ]},
+  {date:"어제",items:[
+    {src:makeReceiptSVG("#0047CC","KTX","한국철도공사","서울→부산","59,800","","","59,800","#0047CC"),l:"교통"},
+    {src:makeReceiptSVG("#FF5722","BBQ","BBQ 강남점","황금올리브","21,000","콜라세트","3,000","24,000","#FF5722"),l:"식비"},
+    {src:makeReceiptSVG("#2196F3","코레일","코레일 서울역","KTX승차권","45,000","","","45,000","#2196F3"),l:"교통"},
+    {src:makeReceiptSVG("#4CAF50","롯데마트","롯데마트","생수 6병","5,900","음료수","3,200","9,100","#4CAF50"),l:"기타"},
+    {src:makeReceiptSVG("#9C27B0","CU편의점","CU 강남점","삼각김밥","1,500","음료","2,000","3,500","#9C27B0"),l:"기타"},
+    {src:makeReceiptSVG("#FF9800","맥도날드","맥도날드","빅맥세트","8,900","콜라","2,200","11,100","#FF9800"),l:"식비"}
+  ]},
+  {date:"5월 15일",items:[
+    {src:makeReceiptSVG("#607D8B","비즈호텔","강남 비즈호텔","객실요금","130,000","","","130,000","#607D8B"),l:"숙박"},
+    {src:makeReceiptSVG("#795548","투썸","투썸플레이스","아이스티","5,500","케이크","6,800","12,300","#795548"),l:"식비"},
+    {src:makeReceiptSVG("#F44336","롯데리아","롯데리아","버거세트","8,500","","","8,500","#F44336"),l:"식비"},
+    {src:makeReceiptSVG("#00BCD4","택시","모범택시","이용요금","25,000","","","25,000","#00BCD4"),l:"교통"}
+  ]}
+];
+
+/* ══ 유틸 ══ */
+function show(id){
+  document.querySelectorAll(".screen").forEach(function(e){e.classList.remove("active");});
+  var el=document.getElementById(id);
+  if(el){el.classList.add("active");el.scrollTop=0;}
+  if(id==="s4")setTimeout(triggerCf0,300);
+  if(id==="s5")setTimeout(triggerLimits,300);
+  if(id==="s6")renderDraft();
+}
+function showOv(t,s){document.getElementById("ov-t").textContent=t;document.getElementById("ov-s").textContent=s;document.getElementById("overlay").classList.add("show");}
+function hideOv(){document.getElementById("overlay").classList.remove("show");}
+function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2500);}
+function fmtAmt(n){return "₩"+n.toLocaleString();}
+function triggerConf(id,pct){var el=document.getElementById(id);if(!el)return;el.style.width="0";setTimeout(function(){el.style.width=pct+"%";},100);}
+function triggerCf0(){triggerConf("cf0",97.3);}
+function triggerLimits(){setTimeout(function(){[["lf1",17],["lf2",100],["lf3",50],["lf4",60],["lf5",40]].forEach(function(f){var el=document.getElementById(f[0]);if(el)el.style.width=f[1]+"%";});},100);}
+
+/* ★ FIX 3: 건너뛰기 → S4 바로, 식비+교통 2탭만 */
+function showSkipS4(){
+  skipMode=true;
+  // 탭 리셋
+  document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("on");t.style.display="flex";});
+  document.querySelectorAll(".tab-content").forEach(function(tc){tc.classList.remove("on");});
+  // 탭 2,3,4 숨기기
+  [2,3,4].forEach(function(i){
+    var t=document.querySelector(".tab[data-tab='"+i+"']");
+    if(t)t.style.display="none";
+  });
+  // 탭 0 활성화
+  var t0=document.querySelector(".tab[data-tab='0']");
+  if(t0)t0.classList.add("on");
+  var tc0=document.querySelector(".tab-content[data-tc='0']");
+  if(tc0)tc0.classList.add("on");
+  // 중복 경고 숨기기
+  var dup=document.getElementById("dupWarn");
+  if(dup)dup.style.display="none";
+  // OK 바 텍스트 변경
+  var okBar=document.getElementById("s4OkBar");
+  if(okBar)okBar.textContent="✅ 2건 기본 항목 인식 완료 (식비, 교통비)";
+  show("s4");
+}
+
+/* ★ FIX 2: 갤러리 렌더링 — 영수증 SVG */
+function openGallery(){
+  galSelected=[];
+  document.getElementById("galDoneBtn").disabled=true;
+  document.getElementById("galSelCount").textContent="선택 안 함";
+  renderGalleryGrid();
+  document.getElementById("galleryBg").classList.add("show");
+}
+function closeGallery(){document.getElementById("galleryBg").classList.remove("show");}
+function renderGalleryGrid(){
+  var grid=document.getElementById("galleryGrid");grid.innerHTML="";var itemIdx=0;
+  galleryData.forEach(function(group){
+    var lbl=document.createElement("div");lbl.className="gallery-date-label";lbl.textContent=group.date;grid.appendChild(lbl);
+    group.items.forEach(function(img){
+      var cell=document.createElement("div");cell.className="gallery-item";cell.setAttribute("data-idx",itemIdx);
+      // 영수증 SVG 이미지
+      var imgEl=document.createElement("img");
+      imgEl.className="gallery-item-img";
+      imgEl.src=img.src;
+      imgEl.alt=img.l;
+      imgEl.style.objectFit="contain";
+      imgEl.style.background="#F8F8F8";
+      var chk=document.createElement("div");chk.className="gallery-check";var num=document.createElement("span");num.className="gallery-check-num";chk.appendChild(num);
+      // 라벨 뱃지
+      var badge=document.createElement("div");
+      badge.style.cssText="position:absolute;bottom:4px;left:4px;background:rgba(0,71,204,.85);color:#fff;font-size:9px;padding:2px 5px;border-radius:4px;font-weight:700;";
+      badge.textContent=img.l;
+      cell.appendChild(imgEl);cell.appendChild(badge);cell.appendChild(chk);
+      var idx=itemIdx;
+      cell.addEventListener("click",function(){
+        var pos=galSelected.indexOf(idx);
+        if(pos>=0){galSelected.splice(pos,1);cell.classList.remove("selected");num.textContent="";}
+        else{if(galSelected.length>=10){showToast("최대 10장까지 선택 가능합니다.");return;}galSelected.push(idx);cell.classList.add("selected");}
+        document.querySelectorAll(".gallery-item.selected").forEach(function(c){var n=c.querySelector(".gallery-check-num");if(n)n.textContent=galSelected.indexOf(parseInt(c.getAttribute("data-idx")))+1;});
+        var cnt=galSelected.length;
+        /* ★ FIX 4: 선택 안 함 표시 - 탭하면 닫힘 */
+        document.getElementById("galSelCount").textContent=cnt>0?cnt+"개 선택":"선택 안 함";
+        document.getElementById("galDoneBtn").disabled=cnt===0;
+      });
+      grid.appendChild(cell);itemIdx++;
+    });
+  });
+}
+document.getElementById("galDoneBtn").addEventListener("click",function(){
+  var cnt=galSelected.length;closeGallery();
+  showToast("📎 "+cnt+"장 선택됨. 업로드 중...");
+  var lbls=["영수증","식비","교통","숙박","기타"];
+  var bgs=["#F3E8FF","#FCE7F3","#DBEAFE","#DCFCE7","#FEF9C3"];
+  var emojis=["🧾","🍽️","🚌","🏨","📄"];
+  for(var i=0;i<cnt;i++) uploadedThumbs.push({emoji:emojis[i%5],bg:bgs[i%5],label:lbls[i%5]});
+  renderThumbs();
+  setTimeout(function(){showToast("✅ "+cnt+"장 업로드 완료!");},800);
+});
+
+/* ★ FIX 4: "선택 안 함" 탭 → 닫기 */
+document.getElementById("galSelCount").addEventListener("click",function(){
+  if(galSelected.length===0){closeGallery();}
+});
+
+/* ══ 카메라 ══ */
+function openCamera(){document.getElementById("cameraBg").classList.add("show");document.getElementById("camPreview").classList.remove("show");document.getElementById("aiScanOverlay").style.display="none";document.getElementById("aiDetectBadge").style.display="none";}
+function closeCamera(){document.getElementById("cameraBg").classList.remove("show");}
+document.getElementById("camShutter").addEventListener("click",function(){
+  if(flashOn){var fl=document.getElementById("camFlashOverlay");fl.classList.add("flash");setTimeout(function(){fl.classList.remove("flash");},150);}
+  var live=document.getElementById("camLive");live.style.filter="brightness(0.1)";setTimeout(function(){live.style.filter="";},120);
+  setTimeout(function(){document.getElementById("camPreview").classList.add("show");var overlay=document.getElementById("aiScanOverlay");overlay.style.display="flex";setTimeout(function(){document.getElementById("aiDetectBadge").style.display="block";},900);},200);
+});
+document.getElementById("camCloseBtn").addEventListener("click",closeCamera);
+document.getElementById("camFlashBtn").addEventListener("click",function(){flashOn=!flashOn;this.textContent=flashOn?"⚡ 켜짐":"⚡ 자동";showToast(flashOn?"⚡ 플래시 켜짐":"⚡ 플래시 자동");});
+document.getElementById("camRetakeBtn").addEventListener("click",function(){document.getElementById("camPreview").classList.remove("show");document.getElementById("aiScanOverlay").style.display="none";document.getElementById("aiDetectBadge").style.display="none";});
+document.getElementById("camUseBtn").addEventListener("click",function(){closeCamera();uploadedThumbs.push({emoji:"🧾",bg:"#EFF6FF",label:"촬영"});renderThumbs();showToast("📸 촬영한 영수증이 추가되었습니다!");});
+
+/* ══ 썸네일 ══ */
+function renderThumbs(){
+  var grid=document.getElementById("thumbGrid");var section=document.getElementById("thumbSectionTitle");
+  section.style.display="block";grid.style.display="grid";grid.innerHTML="";
+  uploadedThumbs.forEach(function(t){
+    var cell=document.createElement("div");cell.className="thumb";cell.style.background=t.bg;cell.style.fontSize="22px";cell.textContent=t.emoji;
+    var badge=document.createElement("div");badge.className="thumb-badge";badge.textContent=t.label;cell.appendChild(badge);grid.appendChild(cell);
+  });
+  var addBtn=document.createElement("div");addBtn.className="thumb-add";addBtn.id="addMore";addBtn.textContent="＋";
+  addBtn.addEventListener("click",function(){openChoiceSheet();});grid.appendChild(addBtn);
+  document.getElementById("thumbCount").textContent=uploadedThumbs.length;
+}
+
+/* ══ 선택 팝업 ══ */
+function openChoiceSheet(){document.getElementById("uploadChoiceBg").classList.add("show");}
+function closeChoiceSheet(){document.getElementById("uploadChoiceBg").classList.remove("show");}
+document.getElementById("upZone").addEventListener("click",openChoiceSheet);
+document.getElementById("camDirectBtn").addEventListener("click",function(){openCamera();});
+document.getElementById("galDirectBtn").addEventListener("click",function(){openGallery();});
+document.getElementById("choiceCamera").addEventListener("click",function(){closeChoiceSheet();openCamera();});
+document.getElementById("choiceGallery").addEventListener("click",function(){closeChoiceSheet();openGallery();});
+document.getElementById("choiceCancel").addEventListener("click",closeChoiceSheet);
+document.getElementById("uploadChoiceBg").addEventListener("click",function(e){if(e.target===this)closeChoiceSheet();});
+
+/* ══ 처리 진행바 ══ */
+function startProc(){
+  var pw=document.getElementById("procWrap");pw.style.display="block";
+  var names=[["🍽️","스카이스강남"],["🚌","택시영수증"],["🏨","호텔영수증"],["🧾","기타영수증"],["🍽️","식비2"]];
+  var rows=document.getElementById("procRows");rows.innerHTML="";
+  names.forEach(function(n,i){var row=document.createElement("div");row.className="proc-row";row.innerHTML="<span class='proc-icon'>"+n[0]+"</span><span class='proc-name'>"+n[1]+"</span><div class='proc-bar'><div class='proc-fill fg' id='pf"+i+"' style='width:0'></div></div><span class='proc-pct' id='pp"+i+"'>0%</span>";rows.appendChild(row);});
+  [300,600,1000,1400,1800].forEach(function(t,i){setTimeout(function(){var e=document.getElementById("pf"+i);var p=document.getElementById("pp"+i);if(e){e.style.width="100%";if(p)p.textContent="✅";}},t);});
+}
+
+/* ══ 제외/수정/확인 ══ */
+function applyExclude(idx){
+  items[idx].excluded=true;var card=document.getElementById("card"+idx);if(card)card.classList.add("excluded");
+  var tc=document.getElementById("tc"+idx);
+  if(tc&&!tc.querySelector(".excluded-banner")){var ban=document.createElement("div");ban.className="excluded-banner";ban.innerHTML="🚫 이 항목은 정산에서 제외되었습니다. <button style='margin-left:auto;background:#fff;color:#991B1B;border:1.5px solid #FCA5A5;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;' onclick='restoreItem("+idx+")'>복구</button>";tc.insertBefore(ban,tc.querySelector(".sw-row"));}
+  ["edit","excl","ok"].forEach(function(p){var b=document.getElementById(p+idx);if(b){b.classList.add("done");b.textContent=p==="excl"?"✖ 제외됨":"—";}});
+  var tab=document.querySelector(".tab[data-tab='"+idx+"']");if(tab){tab.style.textDecoration="line-through";tab.style.opacity=".5";}
+  showToast("🚫 항목이 제외되었습니다.");
+}
+window.restoreItem=function(idx){
+  items[idx].excluded=false;var card=document.getElementById("card"+idx);if(card)card.classList.remove("excluded");
+  var tc=document.getElementById("tc"+idx);if(tc){var b=tc.querySelector(".excluded-banner");if(b)b.remove();}
+  var eb=document.getElementById("edit"+idx);var xb=document.getElementById("excl"+idx);var ob=document.getElementById("ok"+idx);
+  if(eb){eb.classList.remove("done");eb.textContent="✏️ 수정";}if(xb){xb.classList.remove("done");xb.textContent="❌ 제외";}if(ob){ob.classList.remove("done");ob.textContent="✅ 확인";}
+  var tab=document.querySelector(".tab[data-tab='"+idx+"']");if(tab){tab.style.textDecoration="";tab.style.opacity="";}showToast("↩️ 항목이 복구되었습니다.");
+};
+function openEditModal(idx){
+  currentEditIdx=idx;var item=items[idx];
+  document.getElementById("editModalTitle").textContent="✏️ 항목 수정 — "+item.name;
+  document.getElementById("editName").value=item.name;document.getElementById("editDate").value=item.date;document.getElementById("editAmt").value=item.amt;
+  var sel=document.getElementById("editCat");for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===item.cat){sel.selectedIndex=i;break;}}
+  document.getElementById("editModal").classList.add("show");
+}
+document.getElementById("editSave").addEventListener("click",function(){
+  var idx=currentEditIdx;if(idx<0)return;
+  var nn=document.getElementById("editName").value.trim()||items[idx].name;var nd=document.getElementById("editDate").value.trim()||items[idx].date;
+  var na=parseInt(document.getElementById("editAmt").value)||items[idx].amt;var nc=document.getElementById("editCat").value;
+  items[idx].name=nn;items[idx].date=nd;items[idx].amt=na;items[idx].cat=nc;items[idx].edited=true;
+  var ne=document.getElementById("c"+idx+"-name");var de=document.getElementById("c"+idx+"-date");var ae=document.getElementById("c"+idx+"-amt");var ce=document.getElementById("c"+idx+"-cat");
+  if(ne)ne.innerHTML=nn+" <span class='edited-badge'>✏️수정됨</span>";if(de)de.textContent=nd;if(ae)ae.textContent=fmtAmt(na);if(ce)ce.textContent=nc;
+  document.getElementById("editModal").classList.remove("show");showToast("✅ 수정이 저장되었습니다.");
+});
+document.getElementById("editCancel").addEventListener("click",function(){document.getElementById("editModal").classList.remove("show");});
+document.getElementById("editModal").addEventListener("click",function(e){if(e.target===this)this.classList.remove("show");});
+for(var i=0;i<5;i++){(function(idx){
+  var eb=document.getElementById("edit"+idx);var xb=document.getElementById("excl"+idx);var ob=document.getElementById("ok"+idx);
+  if(eb)eb.addEventListener("click",function(){if(!items[idx].excluded)openEditModal(idx);});
+  if(xb)xb.addEventListener("click",function(){if(!items[idx].excluded)applyExclude(idx);});
+  if(ob)ob.addEventListener("click",function(){if(!items[idx].excluded){ob.classList.add("done");ob.textContent="✔ 확인됨";showToast("✅ 확인 처리되었습니다.");}});
+})(i);}
+
+/* ══ 탭 전환 ══ */
+document.querySelectorAll(".tab").forEach(function(tab){
+  tab.addEventListener("click",function(){
+    var idx=parseInt(tab.getAttribute("data-tab"));
+    document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("on");});tab.classList.add("on");
+    document.querySelectorAll(".tab-content").forEach(function(tc){tc.classList.remove("on");});
+    var tgt=document.querySelector(".tab-content[data-tc='"+idx+"']");if(tgt)tgt.classList.add("on");
+    triggerConf("cf"+idx,[97.3,98.1,95.8,91.2,97.0][idx]);
+  });
+});
+
+/* ══ 초안 ══ */
+function renderDraft(){
+  var c=document.getElementById("draftItems");c.innerHTML="";var total=0;var excCnt=0;
+  var renderItems=skipMode?[items[0],items[1]]:items; // 건너뛰기 모드면 식비+교통만
+  renderItems.forEach(function(item){
+    var div=document.createElement("div");
+    if(item.excluded){excCnt++;div.className="item-row excluded-row";div.innerHTML="<div class='ir-l'><div class='ir-icon ic-e'>🚫</div><div><div class='ir-name'>"+item.name+" — 제외됨</div><div class='ir-date'>정산 제외</div></div></div><div class='ir-amt'>₩0</div>";}
+    else{total+=item.amt;var et=item.edited?" <span style='background:#FEF9C3;color:#854D0E;font-size:10px;padding:1px 6px;border-radius:5px;font-weight:700;'>✏️수정됨</span>":"";div.className="item-row";div.innerHTML="<div class='ir-l'><div class='ir-icon "+item.iconClass+"'>"+item.icon+"</div><div><div class='ir-name'>"+item.name+et+"</div><div class='ir-date'>"+item.date+"</div></div></div><div class='ir-amt'>"+fmtAmt(item.amt)+"</div>";}
+    c.appendChild(div);
+  });
+  document.getElementById("s6TotalAmt").textContent=fmtAmt(total);
+  document.getElementById("doneAmt").textContent=fmtAmt(total);
+  document.getElementById("s6LimitCheck").textContent="총 "+fmtAmt(total)+" / 한도 ₩500,000 이내";
+  document.getElementById("aiComment").textContent=excCnt>0?"본 정산은 서울 출장 관련 비용입니다. 제외 항목 "+excCnt+"건이 반영되었으며, 최종 정산 금액은 "+fmtAmt(total)+"입니다.":"본 정산은 서울 출장 관련 비용으로 규정 내 정상 처리되었습니다.";
+}
+
+/* ══ 네비게이션 ══ */
+document.getElementById("startBtn").addEventListener("click",function(){show("s_role");});
+document.getElementById("roleEmp").addEventListener("click",function(){show("s1");});
+document.getElementById("roleAppr").addEventListener("click",function(){show("s_appr");});
+document.querySelectorAll(".trip-c").forEach(function(c){c.addEventListener("click",function(){document.querySelectorAll(".trip-c").forEach(function(x){x.classList.remove("sel");});c.classList.add("sel");});});
+document.getElementById("toS2").addEventListener("click",function(){show("s2");});
+document.getElementById("bk_s2").addEventListener("click",function(){show("s_role");});
+document.getElementById("toS3").addEventListener("click",function(){skipMode=false;show("s3");});
+
+/* ★ FIX 3: 건너뛰기 → S4 직행 */
+document.getElementById("skipS3").addEventListener("click",function(){showSkipS4();});
+
+document.getElementById("bk_s3").addEventListener("click",function(){show("s2");});
+document.getElementById("bk_s3b").addEventListener("click",function(){show("s2");});
+document.getElementById("toS4").addEventListener("click",function(){
+  skipMode=false;
+  // 탭 전체 복원
+  document.querySelectorAll(".tab").forEach(function(t){t.style.display="flex";});
+  var dup=document.getElementById("dupWarn");if(dup)dup.style.display="flex";
+  var okBar=document.getElementById("s4OkBar");if(okBar)okBar.textContent="✅ 5장 분석 완료 · 평균 신뢰도 96.1%";
+  if(uploadedThumbs.length===0){var es=["🍽️","🚌","🏨","🧾","🍽️"];var bs=["#DBEAFE","#FCE7F3","#DCFCE7","#F3E8FF","#FEF9C3"];var ls=["식비","교통","숙박","기타","식비"];for(var i=0;i<5;i++)uploadedThumbs.push({emoji:es[i],bg:bs[i],label:ls[i]});renderThumbs();}
+  var steps=[["OCR 엔진 구동 중...",""+uploadedThumbs.length+"장 병렬 처리"],["텍스트 추출 중...","금액·날짜·업체명 분석"],["카테고리 분류 중...","AI 자동 분류"],["이상 탐지 중...","중복·한도 검사"],["완료!","평균 신뢰도 96.1%"]];
+  var i=0;startProc();showOv(steps[0][0],steps[0][1]);
+  var iv=setInterval(function(){i++;if(i<steps.length){document.getElementById("ov-t").textContent=steps[i][0];document.getElementById("ov-s").textContent=steps[i][1];}else{clearInterval(iv);hideOv();show("s4");}},700);
+});
+document.getElementById("bk_s4").addEventListener("click",function(){skipMode?show("s2"):show("s3");});
+document.getElementById("bk_s4b").addEventListener("click",function(){skipMode?show("s2"):show("s3");});
+document.getElementById("toS5").addEventListener("click",function(){show("s5");});
+document.getElementById("bk_s5").addEventListener("click",function(){show("s4");});
+document.getElementById("bk_s5b").addEventListener("click",function(){show("s4");});
+document.getElementById("toS6").addEventListener("click",function(){showOv("정산 초안 생성 중...","AI가 수정·제외 항목 반영 중");setTimeout(function(){hideOv();show("s6");},1400);});
+document.getElementById("bk_s6").addEventListener("click",function(){show("s5");});
+document.getElementById("submitBtn").addEventListener("click",function(){showOv("제출 중...","결재자에게 전달 중");setTimeout(function(){hideOv();show("s_done");},1500);});
+document.getElementById("saveBtn").addEventListener("click",function(){showOv("저장 중...","임시저장 중");setTimeout(function(){hideOv();show("s_done");},1000);});
+document.getElementById("rstBtn").addEventListener("click",function(){
+  items.forEach(function(it){it.excluded=false;it.edited=false;});
+  uploadedThumbs=[];skipMode=false;
+  document.getElementById("procWrap").style.display="none";document.getElementById("thumbGrid").style.display="none";document.getElementById("thumbSectionTitle").style.display="none";
+  document.querySelectorAll(".conf-fill").forEach(function(f){f.style.width="0";});document.querySelectorAll(".lim-fill").forEach(function(f){f.style.width="0";});
+  // 탭 전체 복원
+  document.querySelectorAll(".tab").forEach(function(t){t.style.display="flex";t.style.textDecoration="";t.style.opacity="";});
+  var dup=document.getElementById("dupWarn");if(dup)dup.style.display="flex";
+  var okBar=document.getElementById("s4OkBar");if(okBar)okBar.textContent="✅ 5장 분석 완료 · 평균 신뢰도 96.1%";
+  for(var j=0;j<5;j++){
+    var card=document.getElementById("card"+j);if(card)card.classList.remove("excluded");
+    var tc=document.getElementById("tc"+j);if(tc){var b=tc.querySelector(".excluded-banner");if(b)b.remove();}
+    var eb=document.getElementById("edit"+j);var xb=document.getElementById("excl"+j);var ob=document.getElementById("ok"+j);
+    if(eb){eb.classList.remove("done");eb.textContent="✏️ 수정";}if(xb){xb.classList.remove("done");xb.textContent="❌ 제외";}if(ob){ob.classList.remove("done");ob.textContent=["✅ 확인","✅ 확인","✅ 확인","✅ 포함","✅ 확인"][j];}
+    var ne=document.getElementById("c"+j+"-name");if(ne)ne.textContent=["스카이스 강남점","모범택시 영수증","강남 비즈니스호텔","편의점 (GS25)","한식당 (점심)"][j];
+  }
+  document.getElementById("reviewPanel1").classList.remove("show");document.getElementById("reviewPanel2").classList.remove("show");
+  ["apprCard1","apprCard2"].forEach(function(id){var c=document.getElementById(id);if(c){c.style.display="";c.classList.remove("rejected");var rb=c.querySelector(".rejected-banner");if(rb)rb.remove();var ab=c.querySelector(".appr-btns");if(ab)ab.style.display="";}});
+  document.getElementById("apprWaiting").style.display="block";document.getElementById("apprDone").style.display="none";
+  show("s0");
+});
+
+/* ══ 팀장 뷰 ══ */
+document.getElementById("reviewBtn1").addEventListener("click",function(){var p=document.getElementById("reviewPanel1");p.classList.toggle("show");if(p.classList.contains("show"))p.scrollIntoView({behavior:"smooth",block:"nearest"});});
+document.getElementById("reviewBtn2").addEventListener("click",function(){var p=document.getElementById("reviewPanel2");p.classList.toggle("show");if(p.classList.contains("show"))p.scrollIntoView({behavior:"smooth",block:"nearest"});});
+document.querySelectorAll(".rv-ok").forEach(function(btn){btn.addEventListener("click",function(){btn.textContent="✅";btn.disabled=true;btn.style.opacity=".7";var nb=btn.parentElement.querySelector(".rv-no");if(nb){nb.disabled=true;nb.style.opacity=".4";}showToast("✅ "+btn.getAttribute("data-item")+" 확인");});});
+document.querySelectorAll(".rv-no").forEach(function(btn){btn.addEventListener("click",function(){btn.textContent="❌";btn.disabled=true;btn.style.opacity=".7";var ob=btn.parentElement.querySelector(".rv-ok");if(ob){ob.disabled=true;ob.style.opacity=".4";}showToast("❌ "+btn.getAttribute("data-item")+" 반려");});});
+function doApprove(name,cardId,panelId){showOv("승인 처리 중...","");setTimeout(function(){hideOv();document.getElementById(panelId).classList.remove("show");document.getElementById(cardId).style.display="none";document.getElementById("approvedName").textContent=name+"의 정산이 승인되었습니다.";document.getElementById("apprWaiting").style.display="none";document.getElementById("apprDone").style.display="block";showToast("✅ "+name+" 승인 완료!");},1000);}
+document.getElementById("reviewFinalOk1").addEventListener("click",function(){doApprove("김지현 대리","apprCard1","reviewPanel1");});
+document.getElementById("reviewFinalCancel1").addEventListener("click",function(){document.getElementById("reviewPanel1").classList.remove("show");});
+document.getElementById("reviewFinalOk2").addEventListener("click",function(){doApprove("이수진 사원","apprCard2","reviewPanel2");});
+document.getElementById("reviewFinalCancel2").addEventListener("click",function(){document.getElementById("reviewPanel2").classList.remove("show");});
+document.getElementById("approveBtn1").addEventListener("click",function(){doApprove("김지현 대리","apprCard1","reviewPanel1");});
+document.getElementById("approveBtn2").addEventListener("click",function(){doApprove("이수진 사원","apprCard2","reviewPanel2");});
+document.getElementById("rejectBtn1").addEventListener("click",function(){currentRejectTarget="김지현 대리";document.getElementById("rejectTargetInfo").textContent="김지현 대리 — 서울 출장 (₩181,500)";document.getElementById("rejectReason").value="";document.getElementById("rejectModal").classList.add("show");});
+document.getElementById("rejectBtn2").addEventListener("click",function(){currentRejectTarget="이수진 사원";document.getElementById("rejectTargetInfo").textContent="이수진 사원 — 대전 출장 (₩95,000)";document.getElementById("rejectReason").value="";document.getElementById("rejectModal").classList.add("show");});
+document.getElementById("rejectCancel").addEventListener("click",function(){document.getElementById("rejectModal").classList.remove("show");});
+document.getElementById("rejectModal").addEventListener("click",function(e){if(e.target===this)this.classList.remove("show");});
+document.getElementById("rejectSend").addEventListener("click",function(){
+  var reason=document.getElementById("rejectReason").value.trim();if(!reason){showToast("⚠️ 반려 사유를 입력해주세요.");return;}
+  showOv("반려 알림 전송 중...","");document.getElementById("rejectModal").classList.remove("show");
+  setTimeout(function(){
+    hideOv();var cardId=currentRejectTarget.indexOf("김지현")>=0?"apprCard1":"apprCard2";var panelId=currentRejectTarget.indexOf("김지현")>=0?"reviewPanel1":"reviewPanel2";
+    var card=document.getElementById(cardId);
+    if(card){card.classList.add("rejected");var ban=document.createElement("div");ban.className="rejected-banner";ban.innerHTML="❌ 반려 완료<br><span style='font-weight:400;font-size:12px;'>사유: "+reason+"</span>";card.appendChild(ban);var ab=card.querySelector(".appr-btns");if(ab)ab.style.display="none";}
+    document.getElementById(panelId).classList.remove("show");showToast("📨 반려 알림이 "+currentRejectTarget+"에게 전송되었습니다.");
+  },1200);
+});
+["atab1","atab2","atab3"].forEach(function(id){document.getElementById(id).addEventListener("click",function(){document.querySelectorAll(".appr-tab").forEach(function(t){t.classList.remove("on");});document.getElementById(id).classList.add("on");if(id==="atab1"){document.getElementById("apprWaiting").style.display="block";document.getElementById("apprDone").style.display="none";}else{document.getElementById("apprWaiting").style.display="none";document.getElementById("apprDone").style.display="block";}});});
+document.getElementById("bk_appr").addEventListener("click",function(){show("s_role");});
+})();
+</script>
+</body>
+</html>
